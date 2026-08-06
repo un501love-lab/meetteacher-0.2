@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบการนัดพบครูประจำชั้น</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #dbeafe;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --purple: #7c3aed;
+    --purple-light: #ede9fe;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --gray-900: #0f172a;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.05);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Leelawadee UI', 'Sarabun', Tahoma, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #fff;
+    padding: 20px 16px 0;
+    text-align: center;
+  }
+  header h1 { font-size: 1.35rem; font-weight: 700; }
+  header p { font-size: .85rem; opacity: .85; margin-top: 4px; }
+  .tabs { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+  .tab-btn {
+    background: rgba(255,255,255,.15);
+    border: none; color: #fff;
+    padding: 10px 24px;
+    border-radius: 10px 10px 0 0;
+    font-size: .95rem; font-family: inherit; cursor: pointer;
+  }
+  .tab-btn.active { background: var(--gray-100); color: var(--primary-dark); font-weight: 700; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  .card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 1.05rem; margin-bottom: 14px; color: var(--primary-dark); }
+  label { display: block; font-size: .85rem; font-weight: 600; color: var(--gray-700); margin-bottom: 4px; }
+  select, input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 8px;
+    font-size: .95rem; font-family: inherit;
+    background: #fff; color: var(--gray-900);
+  }
+  select:focus, input:focus { outline: none; border-color: var(--primary); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > .field { flex: 1; min-width: 130px; margin-bottom: 12px; }
+  .field { margin-bottom: 12px; }
+  .btn {
+    display: inline-block;
+    background: var(--primary); color: #fff;
+    border: none; padding: 11px 22px; border-radius: 8px;
+    font-size: .95rem; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: background .15s;
+  }
+  .btn:hover { background: var(--primary-dark); }
+  .btn:disabled { background: var(--gray-400); cursor: not-allowed; }
+  .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+  .btn-outline:hover { background: var(--primary-light); }
+  .btn-sm { padding: 6px 14px; font-size: .85rem; }
+  .btn-green { background: var(--green); }
+  .btn-green:hover { background: #15803d; }
+  .btn-danger { background: none; color: var(--red); border: none; font-size: .85rem; cursor: pointer; font-family: inherit; }
+  .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .slot {
+    border: 1.5px solid var(--gray-200);
+    border-radius: 10px; padding: 12px; text-align: center;
+    cursor: pointer; background: #fff; font-family: inherit;
+    transition: border-color .15s, background .15s;
+  }
+  .slot:hover { border-color: var(--primary); background: var(--primary-light); }
+  .slot .time { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); }
+  .slot .teacher { font-size: .78rem; color: var(--gray-500); margin-top: 2px; }
+  .day-head { font-weight: 700; font-size: .95rem; margin: 16px 0 8px; color: var(--gray-700); }
+  .day-head:first-child { margin-top: 0; }
+  .empty { text-align: center; color: var(--gray-500); padding: 30px 10px; font-size: .95rem; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 600; white-space: nowrap; }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-amber { background: var(--amber-light); color: var(--amber); }
+  .badge-blue { background: var(--primary-light); color: var(--primary-dark); }
+  .badge-purple { background: var(--purple-light); color: var(--purple); }
+  .badge-gray { background: var(--gray-100); color: var(--gray-500); }
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,.5);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; z-index: 100;
+  }
+  .modal {
+    background: #fff; border-radius: var(--radius);
+    max-width: 460px; width: 100%; padding: 24px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h3 { font-size: 1.1rem; margin-bottom: 4px; color: var(--primary-dark); }
+  .modal .slot-info {
+    background: var(--primary-light);
+    border-radius: 8px; padding: 10px 14px;
+    margin: 12px 0 16px; font-size: .9rem; line-height: 1.6;
+  }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .hidden { display: none !important; }
+  .success-box { text-align: center; padding: 10px 0; }
+  .success-box .icon { font-size: 3rem; }
+  .success-box h3 { color: var(--green); margin: 8px 0; }
+  .success-box .detail {
+    background: var(--green-light);
+    border-radius: 8px; padding: 12px;
+    font-size: .9rem; line-height: 1.7;
+    text-align: left; margin-top: 12px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+  th { color: var(--gray-500); font-weight: 600; white-space: nowrap; }
+  .table-wrap { overflow-x: auto; }
+  .mode-banner {
+    background: var(--amber-light); color: #92400e;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: .82rem; margin-bottom: 16px; line-height: 1.5;
+  }
+  .error-msg { color: var(--red); font-size: .85rem; margin-top: 8px; }
+  .info-msg {
+    color: #166534; background: var(--green-light);
+    border-radius: 8px; padding: 10px 12px;
+    font-size: .85rem; margin-top: 10px; text-align: left; line-height: 1.6;
+    white-space: pre-line;
+  }
+  .btn-link {
+    background: none; border: none; color: var(--primary);
+    font-family: inherit; font-size: .85rem; cursor: pointer;
+    text-decoration: underline; padding: 4px;
+  }
+  .or-line {
+    display: flex; align-items: center; gap: 10px;
+    margin: 18px 0 12px; color: var(--gray-400); font-size: .8rem;
+  }
+  .or-line::before, .or-line::after {
+    content: ""; flex: 1; height: 1px; background: var(--gray-200);
+  }
+  .pin-box { max-width: 380px; margin: 30px auto; text-align: center; }
+  .room-bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--primary-light);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 14px;
+  }
+  .room-bar .room-title { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); }
+  .sub-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .sub-tab {
+    flex: 1; padding: 12px; border-radius: 10px;
+    border: 1.5px solid var(--gray-200); background: #fff;
+    font-family: inherit; font-size: .95rem; font-weight: 600;
+    color: var(--gray-500); cursor: pointer;
+  }
+  .sub-tab.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat {
+    background: var(--gray-50); border: 1.5px solid var(--gray-200);
+    border-radius: 10px; padding: 12px 8px; text-align: center;
+  }
+  .stat .num { font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); }
+  .stat .lbl { font-size: .75rem; color: var(--gray-500); }
+  .progress-row { margin-bottom: 12px; }
+  .progress-row .plabel { display: flex; justify-content: space-between; font-size: .82rem; color: var(--gray-700); margin-bottom: 4px; }
+  .progress-wrap { background: var(--gray-100); border-radius: 999px; height: 12px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); transition: width .3s; }
+  .progress-fill.blue { background: var(--primary); }
+  .mode-choice { display: flex; gap: 10px; margin-bottom: 12px; }
+  .mode-choice label {
+    flex: 1; border: 1.5px solid var(--gray-200); border-radius: 10px;
+    padding: 12px; text-align: center; cursor: pointer;
+    font-weight: 600; color: var(--gray-700); margin: 0;
+  }
+  .mode-choice input { display: none; }
+  .mode-choice label:has(input:checked) { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); }
+  .mode-choice label.disabled { opacity: .5; cursor: not-allowed; }
+  .note { font-size: .8rem; color: var(--gray-500); }
+  footer { text-align: center; font-size: .75rem; color: var(--gray-400); padding: 20px; }
+  @media (max-width: 480px) {
+    .slot-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📅 ระบบการนัดพบครูประจำชั้น</h1>
+  <p><span id="school-name"></span> — ภาคเรียนที่ <span id="header-term"></span></p>
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-parent" onclick="switchTab('parent')">👨‍👩‍👧 สำหรับผู้ปกครอง</button>
+    <button class="tab-btn" id="tab-teacher" onclick="switchTab('teacher')">👩‍🏫 สำหรับคุณครู</button>
+  </div>
+</header>
+
+<main>
+  <div id="demo-banner" class="mode-banner hidden">
+    ⚠️ <b>โหมดทดลอง:</b> ข้อมูลถูกเก็บในเครื่องนี้เท่านั้น หากต้องการใช้งานจริง ให้ตั้งค่า Firebase ตามไฟล์ <b>README-SETUP.md</b>
+  </div>
+
+  <!-- ================= หน้าผู้ปกครอง ================= -->
+  <section id="page-parent">
+    <div class="card">
+      <h2>เลือกห้องเรียนของนักเรียน</h2>
+      <div class="row">
+        <div class="field">
+          <label for="p-term">ภาคเรียน</label>
+          <select id="p-term"></select>
+        </div>
+        <div class="field">
+          <label for="p-grade">ระดับชั้น</label>
+          <select id="p-grade"></select>
+        </div>
+        <div class="field">
+          <label for="p-room">ห้อง</label>
+          <select id="p-room"></select>
+        </div>
+      </div>
+      <div id="p-room-info" class="note"></div>
+    </div>
+
+    <div class="card">
+      <h2>ช่วงเวลาที่ว่าง <span class="badge badge-green" id="avail-count"></span></h2>
+      <div id="slot-list"><div class="empty">กรุณาเลือกระดับชั้นและห้อง</div></div>
+    </div>
+  </section>
+
+  <!-- ================= หน้าคุณครู ================= -->
+  <section id="page-teacher" class="hidden">
+    <!-- ล็อกอิน -->
+    <div id="teacher-login" class="card pin-box">
+      <h2>🔒 สำหรับคุณครู</h2>
+
+      <div class="sub-tabs" style="margin-top:14px">
+        <button class="sub-tab active" id="auth-tab-login" onclick="switchAuthMode('login')">เข้าสู่ระบบ</button>
+        <button class="sub-tab" id="auth-tab-signup" onclick="switchAuthMode('signup')">สมัครใช้งาน</button>
+      </div>
+
+      <div class="field hidden" id="au-name-field" style="text-align:left">
+        <label for="au-name">ชื่อ - สกุลคุณครู</label>
+        <input type="text" id="au-name" placeholder="เช่น ครูสมศรี ใจดี">
+      </div>
+      <div class="field" style="text-align:left">
+        <label for="au-email">อีเมลโรงเรียน</label>
+        <input type="email" id="au-email" placeholder="name@mvschool.ac.th" autocomplete="username">
+      </div>
+      <div class="field" style="text-align:left">
+        <label for="au-pass">รหัสผ่าน</label>
+        <input type="password" id="au-pass" placeholder="รหัสผ่าน" autocomplete="current-password">
+      </div>
+      <button class="btn" id="au-submit" onclick="submitAuth()">เข้าสู่ระบบ</button>
+      <div><button class="btn-link" onclick="forgotPassword()">ลืมรหัสผ่าน?</button></div>
+
+      <div class="or-line">หรือ</div>
+      <button class="btn btn-outline" onclick="teacherSignIn()">🔑 เข้าสู่ระบบด้วย Google</button>
+      <p class="note" style="margin-top:6px">(สำหรับผู้ที่ใช้อีเมลโรงเรียนบน Google อยู่แล้ว)</p>
+
+      <div id="login-error" class="error-msg hidden"></div>
+      <div id="login-info" class="info-msg hidden"></div>
+    </div>
+
+    <div id="teacher-area" class="hidden">
+      <!-- แถบผู้ใช้ -->
+      <div class="card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <img id="user-photo" src="" alt="" style="width:42px;height:42px;border-radius:50%;display:none" referrerpolicy="no-referrer">
+        <div style="flex:1;min-width:150px">
+          <div id="user-name" style="font-weight:700"></div>
+          <div id="user-email" style="font-size:.8rem;color:var(--gray-500)"></div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="teacherSignOut()">ออกจากระบบ</button>
+      </div>
+
+      <!-- เลือกห้องประจำชั้น (ครั้งแรก) -->
+      <div id="room-setup" class="card hidden">
+        <h2>🏫 เลือกห้องประจำชั้นของคุณ</h2>
+        <p class="note" style="margin-bottom:12px">
+          เลือกครั้งเดียว ระบบจะผูกห้องนี้กับบัญชีของคุณ (1 ห้องมีครูประจำชั้นได้ 1 ท่าน เพื่อไม่ให้สร้างเวลานัดซ้ำซ้อนกัน)
+        </p>
+        <div class="row">
+          <div class="field">
+            <label for="r-grade">ระดับชั้น</label>
+            <select id="r-grade"></select>
+          </div>
+          <div class="field">
+            <label for="r-room">ห้อง</label>
+            <select id="r-room"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="r-teacher">ชื่อครูประจำชั้น (แสดงให้ผู้ปกครองเห็น)</label>
+          <input type="text" id="r-teacher" placeholder="เช่น ครูสมศรี ใจดี">
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="r-limit-mode">การรับนัดออนไซต์</label>
+            <select id="r-limit-mode" onchange="onLimitModeChange('r')">
+              <option value="unlimited">รับออนไซต์ ไม่จำกัดจำนวน</option>
+              <option value="limited">รับออนไซต์ กำหนดจำนวน</option>
+              <option value="none">ไม่รับออนไซต์ (ออนไลน์เท่านั้น)</option>
+            </select>
+          </div>
+          <div class="field hidden" id="r-limit-field">
+            <label for="r-limit">จำนวน (คน/ภาคเรียน)</label>
+            <input type="number" id="r-limit" min="1" value="20">
+          </div>
+        </div>
+        <button class="btn" onclick="claimRoom()">✅ ยืนยันห้องประจำชั้น</button>
+        <div id="room-error" class="error-msg hidden"></div>
+      </div>
+
+      <!-- ส่วนจัดการหลัก (เมื่อมีห้องแล้ว) -->
+      <div id="teacher-main" class="hidden">
+        <div class="room-bar">
+          <div style="flex:1;min-width:180px">
+            <div class="room-title" id="my-room-title"></div>
+            <div class="note" id="my-room-sub"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <label style="margin:0;font-size:.8rem">ออนไซต์:</label>
+            <select id="edit-limit-mode" style="width:auto;padding:6px 8px" onchange="onLimitModeChange('edit')">
+              <option value="unlimited">ไม่จำกัด</option>
+              <option value="limited">กำหนดจำนวน</option>
+              <option value="none">ไม่รับ (ออนไลน์เท่านั้น)</option>
+            </select>
+            <input type="number" id="edit-limit" min="1" style="width:70px;padding:6px 8px" class="hidden">
+            <button class="btn btn-sm" onclick="saveLimit()">บันทึก</button>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="changeRoom()">เปลี่ยนห้อง</button>
+        </div>
+
+        <!-- แท็บย่อย: คิวนัด / รายชื่อนักเรียน / แดชบอร์ด -->
+        <div class="sub-tabs">
+          <button class="sub-tab active" id="tsub-slots" onclick="switchTeacherSection('slots')">📋 คิวนัด</button>
+          <button class="sub-tab" id="tsub-students" onclick="switchTeacherSection('students')">👧 รายชื่อนักเรียน</button>
+          <button class="sub-tab" id="tsub-dash" onclick="switchTeacherSection('dash')">📊 แดชบอร์ด</button>
+        </div>
+
+        <div id="tsec-slots">
+        <!-- สร้างช่วงเวลา -->
+        <div class="card">
+          <h2>เพิ่มช่วงเวลาว่างสำหรับนัดพบ</h2>
+          <div class="row">
+            <div class="field">
+              <label for="t-term">ภาคเรียน</label>
+              <select id="t-term"></select>
+            </div>
+            <div class="field">
+              <label for="t-date">วันที่</label>
+              <input type="date" id="t-date">
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="t-start">เวลาเริ่ม</label>
+              <input type="time" id="t-start" value="09:00">
+            </div>
+            <div class="field">
+              <label for="t-end">เวลาสิ้นสุด</label>
+              <input type="time" id="t-end" value="12:00">
+            </div>
+            <div class="field">
+              <label for="t-duration">นาทีต่อคิว</label>
+              <select id="t-duration">
+                <option value="10">10 นาที</option>
+                <option value="15" selected>15 นาที</option>
+                <option value="20">20 นาที</option>
+                <option value="30">30 นาที</option>
+                <option value="60">60 นาที</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn" onclick="addSlots()">➕ สร้างช่วงเวลา</button>
+          <div id="add-msg" class="error-msg hidden"></div>
+        </div>
+
+        <!-- คิวนัดของฉัน -->
+        <div class="card">
+          <h2>📋 คิวนัดของฉัน</h2>
+          <p class="note" style="margin-bottom:10px">ตามภาคเรียนที่เลือกด้านบน — เมื่อพบผู้ปกครองแล้ว กดปุ่ม "✓ เข้าพบแล้ว" ระบบจะบันทึกลงรายชื่อนักเรียนให้</p>
+          <div class="table-wrap">
+            <div id="teacher-slot-list"><div class="empty">ยังไม่มีช่วงเวลา</div></div>
+          </div>
+        </div>
+        </div><!-- /tsec-slots -->
+
+        <!-- รายชื่อนักเรียน -->
+        <div id="tsec-students" class="hidden">
+        <div class="card">
+          <h2>👧 รายชื่อนักเรียนในห้อง <span class="badge badge-blue" id="student-count"></span></h2>
+
+          <div class="row" style="align-items:flex-end">
+            <div class="field" style="flex:0 0 120px">
+              <label for="s-title">คำนำหน้า</label>
+              <select id="s-title">
+                <option>เด็กชาย</option>
+                <option>เด็กหญิง</option>
+                <option>นาย</option>
+                <option>นางสาว</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="s-name">ชื่อ - สกุลนักเรียน</label>
+              <input type="text" id="s-name" placeholder="เช่น สมชาย เรียนดี">
+            </div>
+            <div class="field" style="flex:0 0 auto">
+              <button class="btn" onclick="addStudent()">เพิ่ม</button>
+            </div>
+          </div>
+
+          <div class="field" style="border-top:1px dashed var(--gray-200);padding-top:12px">
+            <label>หรืออัพโหลดไฟล์รายชื่อทั้งห้อง (.txt / .csv — บรรทัดละ 1 คน)</label>
+            <p class="note" style="margin-bottom:8px">
+              ตัวอย่างบรรทัด: <code>ด.ช. สมชาย เรียนดี</code> หรือ <code>เด็กหญิง สมหญิง ขยันเรียน</code><br>
+              จาก Excel ให้เลือก บันทึกเป็น → CSV ได้เลย (คอลัมน์เลขที่/หัวตารางระบบจะข้ามให้อัตโนมัติ)
+            </p>
+            <input type="file" id="s-file" accept=".txt,.csv" style="display:none" onchange="importStudentsFile(this)">
+            <button class="btn btn-outline" onclick="document.getElementById('s-file').click()">📂 เลือกไฟล์รายชื่อ</button>
+            <span id="import-msg" class="note" style="margin-left:10px"></span>
+          </div>
+
+          <div id="student-error" class="error-msg hidden"></div>
+          <div class="table-wrap">
+            <div id="student-list"><div class="empty">ยังไม่มีรายชื่อนักเรียน</div></div>
+          </div>
+        </div>
+        </div><!-- /tsec-students -->
+
+        <!-- แดชบอร์ด -->
+        <div id="tsec-dash" class="hidden">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            <h2 style="margin:0;flex:1">📊 แดชบอร์ดสรุปผล</h2>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="margin:0;font-size:.82rem" for="d-term">ภาคเรียน/ปี:</label>
+              <select id="d-term" style="width:auto;padding:8px 10px"></select>
+            </div>
+          </div>
+          <div id="dash-stats" class="stat-grid"></div>
+          <div id="dash-progress"></div>
+        </div>
+
+        <div class="card">
+          <h2>👧 การเข้าพบของนักเรียน</h2>
+          <div id="dash-students"></div>
+        </div>
+
+        <div class="card">
+          <h2>📆 สรุปรายวัน</h2>
+          <div class="table-wrap">
+            <div id="dash-daily"><div class="empty">ยังไม่มีข้อมูล</div></div>
+          </div>
+        </div>
+        </div><!-- /tsec-dash -->
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ================= ฟอร์มจองเวลา ================= -->
+<div id="book-modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div id="book-form-area">
+      <h3>📝 ลงทะเบียนนัดพบครู</h3>
+      <div class="slot-info" id="book-slot-info"></div>
+
+      <label>รูปแบบการเข้าพบ</label>
+      <div class="mode-choice" id="mode-choice">
+        <label id="mode-onsite-label"><input type="radio" name="b-mode" value="onsite" checked>🏫 ออนไซต์<div class="note" id="onsite-note">พบที่โรงเรียน</div></label>
+        <label><input type="radio" name="b-mode" value="online">💻 ออนไลน์<div class="note">พบผ่านวิดีโอคอล</div></label>
+      </div>
+
+      <div class="field" id="student-pick-field">
+        <label for="b-student">ชื่อนักเรียน</label>
+        <select id="b-student" onchange="onStudentPick()"></select>
+      </div>
+      <div class="row" id="student-type-row">
+        <div class="field" style="flex:0 0 110px">
+          <label for="b-stitle">คำนำหน้า</label>
+          <select id="b-stitle">
+            <option>เด็กชาย</option>
+            <option>เด็กหญิง</option>
+            <option>นาย</option>
+            <option>นางสาว</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="b-sname">ชื่อ - สกุลนักเรียน</label>
+          <input type="text" id="b-sname" placeholder="เช่น สมชาย เรียนดี">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:0 0 110px">
+          <label for="b-ptitle">คำนำหน้า</label>
+          <select id="b-ptitle">
+            <option>นาย</option>
+            <option>นาง</option>
+            <option>นางสาว</option>
+            <option>อื่น ๆ</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="b-pname">ชื่อ - สกุลผู้ปกครอง</label>
+          <input type="text" id="b-pname" placeholder="เช่น สมหญิง เรียนดี">
+        </div>
+      </div>
+      <div id="book-error" class="error-msg hidden"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+        <button class="btn" id="confirm-btn" onclick="confirmBooking()">ยืนยันการจอง</button>
+      </div>
+    </div>
+    <div id="book-success-area" class="success-box hidden">
+      <div class="icon">✅</div>
+      <h3>จองเวลาสำเร็จ!</h3>
+      <div class="detail" id="success-detail"></div>
+      <div class="modal-actions" style="justify-content:center">
+        <button class="btn" onclick="closeModal()">ปิด</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>ระบบการนัดพบครูประจำชั้น · โรงเรียนมารีวิทย์ระยอง</footer>
+
+<script>
+/* ============================================================
+   การตั้งค่า
+   ============================================================ */
+const CONFIG = {
+  SCHOOL_NAME: "โรงเรียนมารีวิทย์ระยอง",
+
+  // ภาคเรียนทั้งหมดในระบบ — ขึ้นปีการศึกษาใหม่ให้เพิ่มต่อท้ายได้เลย
+  // ข้อมูลปีเก่าจะถูกเก็บไว้ตลอด ดูย้อนหลังได้จากแดชบอร์ด/คิวนัด
+  TERMS: ["1/2569", "2/2569", "1/2570", "2/2570"],
+  // ภาคเรียนปัจจุบันที่เปิดให้จอง (แสดงเป็นค่าเริ่มต้น)
+  ACTIVE_TERM: "1/2569",
+  GRADES: ["ป.1","ป.2","ป.3","ป.4","ป.5","ป.6","ม.1","ม.2","ม.3","ม.4","ม.5","ม.6"],
+
+  // จำนวนห้องของแต่ละระดับชั้น — แก้ตัวเลขได้เลย
+  // หรือใส่เป็นรายชื่อห้องเองก็ได้ เช่น "ป.1": ["1","2","3","EP"]
+  ROOMS_BY_GRADE: {
+    "ป.1": 6, "ป.2": 5, "ป.3": 4, "ป.4": 3, "ป.5": 4, "ป.6": 3,
+    "ม.1": 3, "ม.2": 2, "ม.3": 3, "ม.4": 1, "ม.5": 1, "ม.6": 2
+  },
+
+  // จำกัดอีเมลครู: อนุญาตเฉพาะอีเมลที่ลงท้ายด้วยโดเมนนี้ (เว้นว่าง "" = อนุญาตทุกเมล)
+  // EXTRA = รายการอีเมลพิเศษที่อนุญาตเพิ่ม (เช่น ผู้ดูแลระบบ)
+  TEACHER_EMAIL: {
+    DOMAIN: "mvschool.ac.th",
+    EXTRA: ["amontep.at@gmail.com"]
+  },
+
+  FIREBASE: {
+    apiKey: "AIzaSyDkc2YwstwfA9HtnIGbN9hRMUjvRXhDQ4w",
+    authDomain: "meet-44679.firebaseapp.com",
+    projectId: "meet-44679",
+    storageBucket: "meet-44679.firebasestorage.app",
+    messagingSenderId: "84192474317",
+    appId: "1:84192474317:web:a975c9777c79a727d7a584"
+  }
+};
+
+/* ============================================================
+   ชั้นข้อมูล (Data Layer)
+   - slots    : คิวเวลานัด
+   - rooms    : ห้องประจำชั้นของครูแต่ละคน (id = ระดับ_ห้อง)
+   - students : รายชื่อนักเรียนในห้อง
+   ============================================================ */
+let store;
+
+function makeLocalStore() {
+  const read = (k) => JSON.parse(localStorage.getItem(k) || "[]");
+  const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const KEYS = { slots: "ptb-slots-v2", rooms: "ptb-rooms-v2", students: "ptb-students-v2" };
+  const listeners = { slots: [], rooms: [], students: [] };
+  const notify = (kind) => listeners[kind].forEach(cb => cb(read(KEYS[kind])));
+  window.addEventListener("storage", e => {
+    Object.entries(KEYS).forEach(([kind, key]) => { if (e.key === key) notify(kind); });
+  });
+  return {
+    demo: true,
+    listen(cb)         { listeners.slots.push(cb);    cb(read(KEYS.slots)); },
+    listenRooms(cb)    { listeners.rooms.push(cb);    cb(read(KEYS.rooms)); },
+    listenStudents(cb) { listeners.students.push(cb); cb(read(KEYS.students)); },
+    async addSlots(ns) { const s = read(KEYS.slots); ns.forEach(x => s.push(x)); write(KEYS.slots, s); notify("slots"); },
+    async deleteSlot(id) { write(KEYS.slots, read(KEYS.slots).filter(s => s.id !== id)); notify("slots"); },
+    async book(id, booking) {
+      const slots = read(KEYS.slots);
+      const slot = slots.find(s => s.id === id);
+      if (!slot) throw new Error("NOT_FOUND");
+      if (slot.booking) throw new Error("TAKEN");
+      slot.booking = booking;
+      write(KEYS.slots, slots); notify("slots");
+      return slot;
+    },
+    async markMet(id) {
+      const slots = read(KEYS.slots);
+      const slot = slots.find(s => s.id === id);
+      if (slot && slot.booking) { slot.booking.met = true; write(KEYS.slots, slots); notify("slots"); }
+    },
+    async claimRoom(id, data) {
+      const rooms = read(KEYS.rooms);
+      const exist = rooms.find(r => r.id === id);
+      if (exist && exist.uid !== data.uid) { const e = new Error("ROOM_TAKEN"); e.teacherName = exist.teacherName; throw e; }
+      if (!exist) rooms.push({ ...data, id });
+      write(KEYS.rooms, rooms); notify("rooms");
+    },
+    async updateRoom(id, patch) {
+      const rooms = read(KEYS.rooms);
+      const r = rooms.find(x => x.id === id);
+      if (r) Object.assign(r, patch);
+      write(KEYS.rooms, rooms); notify("rooms");
+    },
+    async releaseRoom(id) { write(KEYS.rooms, read(KEYS.rooms).filter(r => r.id !== id)); notify("rooms"); },
+    async addStudent(data) {
+      const st = read(KEYS.students);
+      st.push({ ...data, id: "st" + Date.now() + Math.random().toString(36).slice(2, 6) });
+      write(KEYS.students, st); notify("students");
+    },
+    async deleteStudent(id) { write(KEYS.students, read(KEYS.students).filter(s => s.id !== id)); notify("students"); }
+  };
+}
+
+function makeFirebaseStore(fb) {
+  const db = fb.firestore();
+  const slots = db.collection("slots");
+  const rooms = db.collection("rooms");
+  const students = db.collection("students");
+  const listenCol = (col, cb) => col.onSnapshot(snap => {
+    const arr = []; snap.forEach(d => arr.push({ ...d.data(), id: d.id })); cb(arr);
+  });
+  return {
+    demo: false,
+    listen(cb)         { listenCol(slots, cb); },
+    listenRooms(cb)    { listenCol(rooms, cb); },
+    listenStudents(cb) { listenCol(students, cb); },
+    async addSlots(ns) {
+      const batch = db.batch();
+      ns.forEach(s => { const { id, ...data } = s; batch.set(slots.doc(id), data); });
+      await batch.commit();
+    },
+    async deleteSlot(id) { await slots.doc(id).delete(); },
+    async book(id, booking) {
+      const ref = slots.doc(id);
+      return db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (!doc.exists) throw new Error("NOT_FOUND");
+        if (doc.data().booking) throw new Error("TAKEN");
+        tx.update(ref, { booking });
+        return { ...doc.data(), id, booking };
+      });
+    },
+    async markMet(id) {
+      const ref = slots.doc(id);
+      await db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (!doc.exists || !doc.data().booking) return;
+        tx.update(ref, { booking: { ...doc.data().booking, met: true } });
+      });
+    },
+    async claimRoom(id, data) {
+      const ref = rooms.doc(id);
+      await db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (doc.exists && doc.data().uid !== data.uid) {
+          const e = new Error("ROOM_TAKEN"); e.teacherName = doc.data().teacherName; throw e;
+        }
+        tx.set(ref, data);
+      });
+    },
+    async updateRoom(id, patch) { await rooms.doc(id).update(patch); },
+    async releaseRoom(id) { await rooms.doc(id).delete(); },
+    async addStudent(data) { await students.add(data); },
+    async deleteStudent(id) { await students.doc(id).delete(); }
+  };
+}
+
+/* ============================================================
+   ตัวช่วยทั่วไป
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const THAI_DAYS = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+
+function thaiDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return `วัน${THAI_DAYS[dt.getDay()]}ที่ ${d} ${THAI_MONTHS[m-1]} ${y + 543}`;
+}
+function fillSelect(sel, items, placeholder) {
+  sel.innerHTML = "";
+  if (placeholder) {
+    const o = document.createElement("option");
+    o.value = ""; o.textContent = placeholder;
+    sel.appendChild(o);
+  }
+  items.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+function roomsForGrade(grade) {
+  const def = CONFIG.ROOMS_BY_GRADE ? CONFIG.ROOMS_BY_GRADE[grade] : null;
+  if (Array.isArray(def)) return def.map(String);
+  if (typeof def === "number" && def > 0) return Array.from({ length: def }, (_, i) => String(i + 1));
+  return ["1","2","3","4","5","6"];
+}
+/* ตรวจว่าเปิดจากเบราว์เซอร์ในแอป (TikTok/LINE/Facebook ฯลฯ) ซึ่ง Google ไม่อนุญาตให้ล็อกอิน */
+function isInAppBrowser(ua) {
+  ua = ua || navigator.userAgent || "";
+  if (/FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|BytedanceWebview|Snapchat|Twitter/i.test(ua)) return true;
+  if (/\bwv\b/.test(ua)) return true;                                  // Android WebView
+  if (/iP(hone|ad|od)/.test(ua) && !/Safari\//.test(ua)) return true;  // iOS WebView
+  return false;
+}
+const IN_APP_MSG = "⚠️ คุณกำลังเปิดผ่านเบราว์เซอร์ในแอป (เช่น TikTok / LINE / Facebook) ซึ่ง Google ไม่อนุญาตให้ล็อกอิน\n\nวิธีแก้: กดปุ่ม ⋯ หรือปุ่มแชร์ของหน้านี้ แล้วเลือก \"เปิดในเบราว์เซอร์\" (Safari หรือ Chrome) แล้วล็อกอินใหม่อีกครั้ง";
+
+function isAllowedTeacherEmail(email) {
+  const cfg = CONFIG.TEACHER_EMAIL || {};
+  if (!cfg.DOMAIN) return true;
+  const e = (email || "").toLowerCase();
+  return e.endsWith("@" + cfg.DOMAIN.toLowerCase()) ||
+         (cfg.EXTRA || []).some(x => x.toLowerCase() === e);
+}
+const roomId = (grade, room) => `${grade}_${room}`.replace(/[.\s/]/g, "");
+const modeBadge = (m) => m === "onsite"
+  ? '<span class="badge badge-blue">🏫 ออนไซต์</span>'
+  : '<span class="badge badge-purple">💻 ออนไลน์</span>';
+
+/* ============================================================
+   สถานะรวม
+   ============================================================ */
+let allSlots = [], allRooms = [], allStudents = [];
+let bookingSlotId = null;
+let currentUser = null;   // ครูที่ล็อกอิน
+let myRoom = null;        // ห้องประจำชั้นของครูคนนี้
+
+/* ============================================================
+   สลับแท็บ
+   ============================================================ */
+function switchTab(tab) {
+  $("tab-parent").classList.toggle("active", tab === "parent");
+  $("tab-teacher").classList.toggle("active", tab === "teacher");
+  $("page-parent").classList.toggle("hidden", tab !== "parent");
+  $("page-teacher").classList.toggle("hidden", tab !== "teacher");
+}
+
+/* แท็บย่อยในหน้าคุณครู: คิวนัด / รายชื่อนักเรียน / แดชบอร์ด */
+function switchTeacherSection(sec) {
+  ["slots", "students", "dash"].forEach(k => {
+    $("tsub-" + k).classList.toggle("active", sec === k);
+    $("tsec-" + k).classList.toggle("hidden", sec !== k);
+  });
+}
+
+/* ============================================================
+   หน้าผู้ปกครอง
+   ============================================================ */
+function renderParent() {
+  const term = $("p-term").value, grade = $("p-grade").value, room = $("p-room").value;
+  const list = $("slot-list");
+  const info = $("p-room-info");
+  info.textContent = "";
+  if (!grade || !room) {
+    list.innerHTML = '<div class="empty">กรุณาเลือกระดับชั้นและห้อง</div>';
+    $("avail-count").textContent = "";
+    return;
+  }
+  const rm = allRooms.find(r => r.grade === grade && r.room === room);
+  if (rm) info.textContent = `ครูประจำชั้น: ${rm.teacherName}`;
+
+  const avail = allSlots
+    .filter(s => s.term === term && s.grade === grade && s.room === room && !s.booking)
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+  $("avail-count").textContent = avail.length ? `ว่าง ${avail.length} คิว` : "";
+  if (!avail.length) {
+    list.innerHTML = '<div class="empty">😔 ไม่มีเวลาว่างสำหรับห้องนี้<br><small>อาจถูกจองเต็มแล้ว หรือคุณครูยังไม่เปิดให้จอง</small></div>';
+    return;
+  }
+  const byDay = {};
+  avail.forEach(s => { (byDay[s.date] = byDay[s.date] || []).push(s); });
+  let html = "";
+  Object.keys(byDay).sort().forEach(date => {
+    html += `<div class="day-head">📆 ${thaiDate(date)}</div><div class="slot-grid">`;
+    byDay[date].forEach(s => {
+      html += `<button class="slot" onclick="openBooking('${s.id}')">
+        <div class="time">${s.start} - ${s.end}</div>
+        <div class="teacher">${esc(s.teacher || "ครูประจำชั้น")}</div>
+      </button>`;
+    });
+    html += `</div>`;
+  });
+  list.innerHTML = html;
+}
+
+/* จำนวนคิวออนไซต์ที่ถูกจองแล้วของห้องนั้นทั้งภาคเรียน (โควตารวม) */
+function onsiteBookedCount(grade, room, term) {
+  return allSlots.filter(s =>
+    s.grade === grade && s.room === room && s.term === term &&
+    s.booking && s.booking.mode === "onsite").length;
+}
+
+function openBooking(id) {
+  const s = allSlots.find(x => x.id === id);
+  if (!s || s.booking) { renderParent(); return; }
+  bookingSlotId = id;
+  $("book-slot-info").innerHTML =
+    `<b>ชั้น ${esc(s.grade)}/${esc(s.room)}</b> · ภาคเรียนที่ ${esc(s.term)}<br>` +
+    `${thaiDate(s.date)} เวลา <b>${s.start} - ${s.end} น.</b><br>` +
+    `พบ: ${esc(s.teacher || "ครูประจำชั้น")}`;
+
+  // ออนไซต์ / ออนไลน์ ตามที่ครูตั้งไว้ (ไม่แสดงจำนวนคงเหลือให้ผู้ปกครองเห็น)
+  const rm = allRooms.find(r => r.grade === s.grade && r.room === s.room);
+  const noOnsite = !!rm && rm.onsiteLimit === -1;          // ครูไม่รับออนไซต์
+  const limit = rm && rm.onsiteLimit > 0 ? rm.onsiteLimit : 0;
+  const used = onsiteBookedCount(s.grade, s.room, s.term);
+  const onsiteOff = noOnsite || (limit > 0 && used >= limit);
+  const onsiteLabel = $("mode-onsite-label");
+  const onsiteRadio = onsiteLabel.querySelector("input");
+  onsiteLabel.classList.toggle("disabled", onsiteOff);
+  onsiteRadio.disabled = onsiteOff;
+  $("onsite-note").textContent = noOnsite
+    ? "ห้องนี้รับเฉพาะออนไลน์"
+    : onsiteOff ? "เต็มแล้ว — กรุณาเลือกออนไลน์" : "พบที่โรงเรียน";
+  (onsiteOff ? document.querySelector('input[name="b-mode"][value="online"]') : onsiteRadio).checked = true;
+
+  // รายชื่อนักเรียนของห้องนี้ (ถ้าครูเพิ่มไว้)
+  const roster = allStudents
+    .filter(st => st.grade === s.grade && st.room === s.room)
+    .sort((a, b) => a.name.localeCompare(b.name, "th"));
+  const pick = $("b-student");
+  if (roster.length) {
+    pick.innerHTML = '<option value="">— เลือกชื่อนักเรียน —</option>' +
+      roster.map(st => `<option value="${st.id}">${esc(st.title)} ${esc(st.name)}</option>`).join("") +
+      '<option value="__other">ไม่พบชื่อ (พิมพ์เอง)</option>';
+    $("student-pick-field").classList.remove("hidden");
+    $("student-type-row").classList.add("hidden");
+  } else {
+    $("student-pick-field").classList.add("hidden");
+    $("student-type-row").classList.remove("hidden");
+  }
+
+  $("b-sname").value = ""; $("b-pname").value = "";
+  $("book-error").classList.add("hidden");
+  $("book-form-area").classList.remove("hidden");
+  $("book-success-area").classList.add("hidden");
+  $("confirm-btn").disabled = false;
+  $("book-modal").classList.remove("hidden");
+}
+
+function onStudentPick() {
+  const v = $("b-student").value;
+  $("student-type-row").classList.toggle("hidden", v !== "__other");
+}
+
+function closeModal() {
+  $("book-modal").classList.add("hidden");
+  bookingSlotId = null;
+}
+
+async function confirmBooking() {
+  const err = $("book-error");
+  const mode = document.querySelector('input[name="b-mode"]:checked')?.value || "onsite";
+
+  // ข้อมูลนักเรียน: จากรายชื่อ หรือพิมพ์เอง
+  let sTitle = "", sName = "", studentId = null;
+  const pickVisible = !$("student-pick-field").classList.contains("hidden");
+  const pickVal = pickVisible ? $("b-student").value : "__other";
+  if (pickVisible && pickVal && pickVal !== "__other") {
+    const st = allStudents.find(x => x.id === pickVal);
+    if (st) { sTitle = st.title; sName = st.name; studentId = st.id; }
+  } else if (!pickVisible || pickVal === "__other") {
+    sTitle = $("b-stitle").value;
+    sName = $("b-sname").value.trim();
+  }
+  const pname = $("b-pname").value.trim();
+
+  if (!sName) {
+    err.textContent = pickVisible && pickVal !== "__other"
+      ? "กรุณาเลือกชื่อนักเรียน" : "กรุณากรอกชื่อ-สกุลนักเรียน";
+    err.classList.remove("hidden");
+    return;
+  }
+  if (!pname) {
+    err.textContent = "กรุณากรอกชื่อ-สกุลผู้ปกครอง";
+    err.classList.remove("hidden");
+    return;
+  }
+
+  $("confirm-btn").disabled = true;
+  const booking = {
+    mode, sTitle, sName, studentId,
+    pTitle: $("b-ptitle").value, pName: pname,
+    met: false,
+    at: new Date().toISOString()
+  };
+  try {
+    const slot = await store.book(bookingSlotId, booking);
+    $("book-form-area").classList.add("hidden");
+    $("book-success-area").classList.remove("hidden");
+    $("success-detail").innerHTML =
+      `<b>รูปแบบ:</b> ${mode === "onsite" ? "🏫 ออนไซต์ (พบที่โรงเรียน)" : "💻 ออนไลน์"}<br>` +
+      `<b>นักเรียน:</b> ${esc(booking.sTitle)}${esc(booking.sName)}<br>` +
+      `<b>ผู้ปกครอง:</b> ${esc(booking.pTitle === "อื่น ๆ" ? "" : booking.pTitle)}${esc(booking.pName)}<br>` +
+      `<b>ห้อง:</b> ${esc(slot.grade)}/${esc(slot.room)} · ภาคเรียนที่ ${esc(slot.term)}<br>` +
+      `<b>วัน-เวลา:</b> ${thaiDate(slot.date)} เวลา ${slot.start} - ${slot.end} น.<br>` +
+      `<b>พบ:</b> ${esc(slot.teacher || "ครูประจำชั้น")}<br><br>` +
+      `📸 กรุณาบันทึกภาพหน้าจอนี้ไว้เป็นหลักฐาน`;
+  } catch (e) {
+    $("confirm-btn").disabled = false;
+    err.textContent = e.message === "TAKEN"
+      ? "❌ ขออภัย เวลานี้เพิ่งถูกผู้ปกครองท่านอื่นจองไป กรุณาเลือกเวลาอื่น"
+      : "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง (" + e.message + ")";
+    err.classList.remove("hidden");
+  }
+}
+
+/* ============================================================
+   หน้าคุณครู — ล็อกอิน
+   ============================================================ */
+let authMode = "login";     // "login" | "signup"
+let pendingSignup = false;  // กันข้อความซ้อนตอนสมัครใหม่
+
+function showAuthErr(msg) {
+  $("login-info").classList.add("hidden");
+  const err = $("login-error");
+  err.textContent = msg;
+  err.style.whiteSpace = "pre-line";
+  err.classList.remove("hidden");
+}
+function showAuthInfo(msg) {
+  $("login-error").classList.add("hidden");
+  const box = $("login-info");
+  box.textContent = msg;
+  box.classList.remove("hidden");
+}
+function hideAuthMsg() {
+  $("login-error").classList.add("hidden");
+  $("login-info").classList.add("hidden");
+}
+
+function switchAuthMode(mode) {
+  authMode = mode;
+  $("auth-tab-login").classList.toggle("active", mode === "login");
+  $("auth-tab-signup").classList.toggle("active", mode === "signup");
+  $("au-name-field").classList.toggle("hidden", mode !== "signup");
+  $("au-submit").textContent = mode === "signup" ? "สมัครใช้งาน" : "เข้าสู่ระบบ";
+  $("au-pass").placeholder = mode === "signup" ? "ตั้งรหัสผ่าน อย่างน้อย 6 ตัวอักษร" : "รหัสผ่าน";
+  $("au-pass").autocomplete = mode === "signup" ? "new-password" : "current-password";
+  hideAuthMsg();
+}
+
+function authErrorTh(e) {
+  const map = {
+    "auth/email-already-in-use": "อีเมลนี้เคยสมัครไว้แล้ว กรุณากดแท็บ \"เข้าสู่ระบบ\"",
+    "auth/invalid-email": "รูปแบบอีเมลไม่ถูกต้อง",
+    "auth/weak-password": "รหัสผ่านสั้นเกินไป (ต้องอย่างน้อย 6 ตัวอักษร)",
+    "auth/user-not-found": "ไม่พบบัญชีนี้ กรุณากดแท็บ \"สมัครใช้งาน\" ก่อน",
+    "auth/wrong-password": "รหัสผ่านไม่ถูกต้อง",
+    "auth/invalid-credential": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+    "auth/invalid-login-credentials": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+    "auth/missing-password": "กรุณากรอกรหัสผ่าน",
+    "auth/too-many-requests": "ลองผิดหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่",
+    "auth/network-request-failed": "เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาตรวจสอบสัญญาณ",
+    "auth/operation-not-allowed": "ระบบยังไม่ได้เปิดให้สมัครด้วยอีเมล กรุณาแจ้งผู้ดูแลระบบ"
+  };
+  return map[e.code] || ("เกิดข้อผิดพลาด (" + (e.code || "") + ")\n" + e.message);
+}
+
+const VERIFY_MSG = (email) =>
+  `📧 ระบบส่งลิงก์ยืนยันไปที่\n${email}\n\n` +
+  `กรุณาเปิดอีเมลแล้วกดลิงก์ยืนยัน จากนั้นกลับมาที่หน้านี้เพื่อเข้าสู่ระบบ\n` +
+  `(หากไม่พบ กรุณาดูในกล่องจดหมายขยะ / Spam)`;
+
+/* สมัครใช้งาน หรือ เข้าสู่ระบบ ด้วยอีเมล + รหัสผ่าน */
+async function submitAuth() {
+  if (store.demo) { teacherSignIn(); return; }
+  const email = $("au-email").value.trim();
+  const pass = $("au-pass").value;
+  const name = $("au-name").value.trim();
+  hideAuthMsg();
+
+  if (!email) return showAuthErr("กรุณากรอกอีเมลโรงเรียน");
+  if (!isAllowedTeacherEmail(email))
+    return showAuthErr(`❌ อนุญาตเฉพาะอีเมลโรงเรียน (…@${CONFIG.TEACHER_EMAIL.DOMAIN}) เท่านั้น`);
+  if (!pass) return showAuthErr("กรุณากรอกรหัสผ่าน");
+  if (authMode === "signup") {
+    if (!name) return showAuthErr("กรุณากรอกชื่อ - สกุลคุณครู");
+    if (pass.length < 6) return showAuthErr("รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร");
+  }
+
+  const btn = $("au-submit");
+  btn.disabled = true;
+  try {
+    if (authMode === "signup") {
+      pendingSignup = true;
+      const cred = await firebase.auth().createUserWithEmailAndPassword(email, pass);
+      await cred.user.updateProfile({ displayName: name });
+      await cred.user.sendEmailVerification();
+      await firebase.auth().signOut();
+      pendingSignup = false;
+      switchAuthMode("login");
+      showAuthInfo("✅ สมัครสำเร็จ!\n\n" + VERIFY_MSG(email));
+    } else {
+      const cred = await firebase.auth().signInWithEmailAndPassword(email, pass);
+      if (!cred.user.emailVerified) {
+        pendingSignup = true;
+        await cred.user.sendEmailVerification();
+        await firebase.auth().signOut();
+        pendingSignup = false;
+        showAuthInfo("⚠️ บัญชีนี้ยังไม่ได้ยืนยันอีเมล\n\n" + VERIFY_MSG(email));
+      }
+      // ถ้ายืนยันแล้ว ระบบจะพาเข้าหน้าคุณครูให้เองอัตโนมัติ
+    }
+  } catch (e) {
+    pendingSignup = false;
+    showAuthErr(authErrorTh(e));
+  }
+  btn.disabled = false;
+}
+
+/* ลืมรหัสผ่าน */
+async function forgotPassword() {
+  if (store.demo) return;
+  const email = $("au-email").value.trim();
+  if (!email) return showAuthErr("กรุณากรอกอีเมลโรงเรียนในช่องด้านบนก่อน แล้วกด \"ลืมรหัสผ่าน?\" อีกครั้ง");
+  try {
+    await firebase.auth().sendPasswordResetEmail(email);
+    showAuthInfo(`📧 ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่\n${email}\n\nกรุณาเปิดอีเมลเพื่อตั้งรหัสผ่านใหม่\n(หากไม่พบ กรุณาดูในกล่องจดหมายขยะ / Spam)`);
+  } catch (e) {
+    showAuthErr(authErrorTh(e));
+  }
+}
+
+function teacherSignIn() {
+  if (store.demo) {
+    currentUser = { uid: "demo-teacher", name: "ครูทดลอง ระบบ", email: "demo@localhost", photo: "" };
+    onAuthChanged();
+    return;
+  }
+  const show = showAuthErr;
+  hideAuthMsg();
+
+  if (isInAppBrowser()) {
+    show(IN_APP_MSG + "\n\n💡 หรือใช้วิธี \"สมัครใช้งาน\" ด้วยอีเมลโรงเรียนด้านบนแทน ซึ่งใช้ได้ทุกเบราว์เซอร์");
+    return;
+  }
+
+  const provider = new firebase.auth.GoogleAuthProvider();
+  const params = { prompt: "select_account" };
+  if (CONFIG.TEACHER_EMAIL && CONFIG.TEACHER_EMAIL.DOMAIN) {
+    params.hd = CONFIG.TEACHER_EMAIL.DOMAIN; // แนะนำบัญชีโดเมนโรงเรียนก่อน
+  }
+  provider.setCustomParameters(params);
+
+  firebase.auth().signInWithPopup(provider).catch(e => {
+    // ผู้ใช้ปิดหน้าต่างเอง — ไม่ต้องแจ้งอะไร
+    if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+
+    if (e.code === "auth/popup-blocked") {
+      show("⚠️ เบราว์เซอร์บล็อกหน้าต่างล็อกอิน (ป๊อปอัป)\n\n" +
+           "วิธีแก้: อนุญาตป๊อปอัปของเว็บนี้ แล้วกดเข้าสู่ระบบอีกครั้ง\n" +
+           "• iPhone / iPad: ตั้งค่า → Safari → ปิด \"บล็อกป๊อปอัป\"\n" +
+           "• Chrome: กดไอคอนขวาของแถบที่อยู่ → อนุญาตป๊อปอัป\n" +
+           "• หรือเปิดเว็บนี้บนคอมพิวเตอร์แทน");
+      return;
+    }
+    if (e.code === "auth/unauthorized-domain") {
+      show("❌ โดเมนนี้ยังไม่ได้รับอนุญาต (" + location.hostname + ")\n" +
+           "กรุณาแจ้งผู้ดูแลระบบให้เพิ่มโดเมนนี้ใน Firebase → Authentication → Settings → Authorized domains");
+      return;
+    }
+    if (e.code === "auth/network-request-failed") {
+      show("❌ เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาตรวจสอบสัญญาณแล้วลองใหม่");
+      return;
+    }
+    show("เข้าสู่ระบบไม่สำเร็จ (" + (e.code || "ไม่ทราบสาเหตุ") + ")\n" + e.message);
+  });
+}
+
+function teacherSignOut() {
+  if (store.demo) { currentUser = null; onAuthChanged(); return; }
+  firebase.auth().signOut();
+}
+
+function onAuthChanged() {
+  const loggedIn = !!currentUser;
+  $("teacher-login").classList.toggle("hidden", loggedIn);
+  $("teacher-area").classList.toggle("hidden", !loggedIn);
+  if (loggedIn) {
+    $("user-name").textContent = currentUser.name || "";
+    $("user-email").textContent = currentUser.email || "";
+    const img = $("user-photo");
+    if (currentUser.photo) { img.src = currentUser.photo; img.style.display = "block"; }
+    else { img.style.display = "none"; }
+    if (!$("r-teacher").value.trim()) $("r-teacher").value = currentUser.name || "";
+  }
+  renderTeacher();
+}
+
+/* ============================================================
+   หน้าคุณครู — ห้องประจำชั้น
+   ============================================================ */
+/* ค่าโควตาออนไซต์: -1 = ไม่รับออนไซต์, 0 = ไม่จำกัด, N = จำกัดจำนวน */
+function onLimitModeChange(which) {
+  if (which === "r") {
+    $("r-limit-field").classList.toggle("hidden", $("r-limit-mode").value !== "limited");
+  } else {
+    $("edit-limit").classList.toggle("hidden", $("edit-limit-mode").value !== "limited");
+  }
+}
+function limitFromControls(modeSel, numInput) {
+  if (modeSel.value === "none") return -1;
+  if (modeSel.value === "unlimited") return 0;
+  return Math.max(1, parseInt(numInput.value, 10) || 1);
+}
+
+async function claimRoom() {
+  const grade = $("r-grade").value, room = $("r-room").value;
+  const teacherName = $("r-teacher").value.trim();
+  const limit = limitFromControls($("r-limit-mode"), $("r-limit"));
+  const err = $("room-error");
+  err.classList.add("hidden");
+  if (!teacherName) { err.textContent = "กรุณากรอกชื่อครูประจำชั้น"; err.classList.remove("hidden"); return; }
+  try {
+    await store.claimRoom(roomId(grade, room), {
+      uid: currentUser.uid, grade, room, teacherName, onsiteLimit: limit
+    });
+  } catch (e) {
+    err.textContent = e.message === "ROOM_TAKEN"
+      ? `❌ ห้อง ${grade}/${room} มีครูประจำชั้นแล้ว (${e.teacherName || "ไม่ระบุชื่อ"}) — กรุณาเลือกห้องอื่น หรือติดต่อผู้ดูแลระบบ`
+      : "เกิดข้อผิดพลาด: " + e.message;
+    err.classList.remove("hidden");
+  }
+}
+
+async function saveLimit() {
+  if (!myRoom) return;
+  const limit = limitFromControls($("edit-limit-mode"), $("edit-limit"));
+  await store.updateRoom(myRoom.id, { onsiteLimit: limit });
+}
+
+async function changeRoom() {
+  if (!myRoom) return;
+  if (!confirm(`ยกเลิกการดูแลห้อง ${myRoom.grade}/${myRoom.room} เพื่อเลือกห้องใหม่?\n(คิวนัดและรายชื่อนักเรียนของห้องเดิมจะยังอยู่)`)) return;
+  await store.releaseRoom(myRoom.id);
+}
+
+/* ============================================================
+   หน้าคุณครู — สร้างคิว / รายชื่อนักเรียน / ตารางนัด
+   ============================================================ */
+function slotOverlaps(a, b) {
+  return a.date === b.date && a.term === b.term && a.grade === b.grade &&
+         a.room === b.room && a.start < b.end && b.start < a.end;
+}
+
+async function addSlots() {
+  const msg = $("add-msg");
+  msg.classList.add("hidden"); msg.style.color = "";
+  const fail = (t) => { msg.textContent = t; msg.classList.remove("hidden"); };
+  if (!currentUser || !myRoom) return fail("กรุณาเลือกห้องประจำชั้นก่อน");
+
+  const term = $("t-term").value;
+  const date = $("t-date").value;
+  const start = $("t-start").value, end = $("t-end").value;
+  const dur = parseInt($("t-duration").value, 10);
+  if (!date) return fail("กรุณาเลือกวันที่");
+  if (!start || !end || start >= end) return fail("ช่วงเวลาไม่ถูกต้อง (เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด)");
+
+  const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const toStr = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const newSlots = [];
+  for (let t = toMin(start); t + dur <= toMin(end); t += dur) {
+    const s = {
+      id: `${term.replace("/", "-")}_${myRoom.grade}_${myRoom.room}_${date}_${toStr(t)}`.replace(/[.\s]/g, ""),
+      term, grade: myRoom.grade, room: myRoom.room,
+      teacher: myRoom.teacherName, date,
+      start: toStr(t), end: toStr(t + dur),
+      uid: currentUser.uid,
+      booking: null
+    };
+    if (!allSlots.some(x => slotOverlaps(x, s))) newSlots.push(s);
+  }
+  if (!newSlots.length) return fail("ช่วงเวลานี้มีอยู่แล้วทั้งหมด หรือสั้นเกินกว่าจะสร้างคิวได้");
+  try {
+    await store.addSlots(newSlots);
+  } catch (e) {
+    if (e.code === "permission-denied") return fail("❌ ระบบปฏิเสธสิทธิ์ — กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่อีกครั้ง");
+    return fail("❌ บันทึกไม่สำเร็จ: " + (e.code || "") + " " + e.message);
+  }
+  msg.style.color = "var(--green)";
+  msg.textContent = `✅ สร้างสำเร็จ ${newSlots.length} คิว`;
+  msg.classList.remove("hidden");
+  setTimeout(() => { msg.classList.add("hidden"); msg.style.color = ""; }, 4000);
+}
+
+async function addStudent() {
+  const err = $("student-error");
+  err.classList.add("hidden");
+  if (!myRoom) return;
+  const title = $("s-title").value;
+  const name = $("s-name").value.trim();
+  if (!name) { err.textContent = "กรุณากรอกชื่อ-สกุลนักเรียน"; err.classList.remove("hidden"); return; }
+  if (allStudents.some(s => s.grade === myRoom.grade && s.room === myRoom.room && s.name === name)) {
+    err.textContent = "มีชื่อนี้ในห้องแล้ว"; err.classList.remove("hidden"); return;
+  }
+  try {
+    await store.addStudent({
+      uid: currentUser.uid, grade: myRoom.grade, room: myRoom.room,
+      title, name, createdAt: new Date().toISOString()
+    });
+    $("s-name").value = "";
+    $("s-name").focus();
+  } catch (e) {
+    err.textContent = "เพิ่มไม่สำเร็จ: " + (e.code || e.message);
+    err.classList.remove("hidden");
+  }
+}
+
+async function deleteStudent(id) {
+  if (!confirm("ลบชื่อนักเรียนคนนี้?")) return;
+  await store.deleteStudent(id);
+}
+
+/* ---------- นำเข้ารายชื่อนักเรียนจากไฟล์ (.txt / .csv) ---------- */
+function decodeSmart(buf) {
+  // ไฟล์จาก Excel ภาษาไทยมักเป็น windows-874 — ลอง UTF-8 ก่อน ถ้าอ่านไม่ออกค่อยสลับ
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(buf); }
+  catch { try { return new TextDecoder("windows-874").decode(buf); }
+          catch { return new TextDecoder("utf-8").decode(buf); } }
+}
+
+function parseStudentLine(line) {
+  // ข้ามหัวตาราง
+  if (/คำนำหน้า|เลขที่|ลำดับ|ชื่อ\s*-?\s*สกุล|เลขประจำตัว/.test(line) && !/^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย)/.test(line.trim())) return null;
+  // แยกคอลัมน์ (จาก CSV/Excel) แล้วตัดช่องที่เป็นตัวเลขล้วน (เลขที่/เลขประจำตัว)
+  const cells = line.split(/[,\t;]/).map(c => c.replace(/^["']|["']$/g, "").trim())
+    .filter(c => c && !/^\d+$/.test(c));
+  if (!cells.length) return null;
+  let text = cells.join(" ").replace(/\s+/g, " ").trim();
+  const m = text.match(/^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย)\s*/);
+  let title = "";
+  if (m) {
+    const map = { "ด.ช.": "เด็กชาย", "ด.ญ.": "เด็กหญิง", "น.ส.": "นางสาว" };
+    title = map[m[1]] || m[1];
+    text = text.slice(m[0].length).trim();
+  }
+  return text ? { title, name: text } : null;
+}
+
+async function importStudentsFile(input) {
+  const file = input.files && input.files[0];
+  const msg = $("import-msg");
+  if (!file || !myRoom) return;
+  msg.textContent = "⏳ กำลังนำเข้า...";
+  try {
+    const text = decodeSmart(await file.arrayBuffer());
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const seen = new Set(allStudents
+      .filter(s => s.grade === myRoom.grade && s.room === myRoom.room)
+      .map(s => s.name));
+    let added = 0, skipped = 0;
+    for (const line of lines) {
+      const p = parseStudentLine(line);
+      if (!p || seen.has(p.name)) { skipped++; continue; }
+      seen.add(p.name);
+      await store.addStudent({
+        uid: currentUser.uid, grade: myRoom.grade, room: myRoom.room,
+        title: p.title, name: p.name, createdAt: new Date().toISOString()
+      });
+      added++;
+    }
+    msg.textContent = `✅ นำเข้า ${added} คน` + (skipped ? ` (ข้าม ${skipped} บรรทัด: หัวตาราง/ชื่อซ้ำ)` : "");
+  } catch (e) {
+    msg.textContent = "❌ นำเข้าไม่สำเร็จ: " + (e.code || e.message);
+  }
+  input.value = "";
+}
+
+async function deleteSlot(id) {
+  const s = allSlots.find(x => x.id === id);
+  const q = s && s.booking ? "คิวนี้มีผู้ปกครองจองแล้ว ยืนยันลบหรือไม่?" : "ยืนยันลบคิวนี้หรือไม่?";
+  if (!confirm(q)) return;
+  await store.deleteSlot(id);
+}
+
+async function markMet(id) {
+  await store.markMet(id);
+}
+
+/* หาสถานะการจอง/เข้าพบของนักเรียนจากคิวทั้งหมด */
+function studentStatus(st) {
+  let slot = allSlots.find(s => s.booking && s.booking.studentId === st.id);
+  if (!slot) slot = allSlots.find(s => s.booking && s.booking.sName === st.name
+                                    && s.grade === st.grade && s.room === st.room);
+  if (!slot) return { label: '<span class="badge badge-gray">ยังไม่จอง</span>', slot: null };
+  if (slot.booking.met) return { label: `<span class="badge badge-green">✓ เข้าพบแล้ว</span> ${modeBadge(slot.booking.mode)}`, slot };
+  return { label: `<span class="badge badge-amber">จองแล้ว</span> ${modeBadge(slot.booking.mode)} <span class="note">${thaiDate(slot.date)} ${slot.start} น.</span>`, slot };
+}
+
+/* ============================================================
+   แดชบอร์ดสรุปผลของครู (เลือกดูย้อนหลังได้ทุกภาคเรียน/ปี)
+   ============================================================ */
+function renderDashboard() {
+  if (!currentUser || !myRoom) return;
+  const term = $("d-term").value;
+  const my = allSlots.filter(s => s.uid === currentUser.uid && s.term === term)
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  const booked = my.filter(s => s.booking);
+  const met = booked.filter(s => s.booking.met);
+  const onsite = booked.filter(s => s.booking.mode === "onsite");
+  const online = booked.filter(s => s.booking.mode !== "onsite");
+
+  // การ์ดตัวเลข
+  $("dash-stats").innerHTML = [
+    [my.length, "คิวทั้งหมด"],
+    [booked.length, "จองแล้ว"],
+    [my.length - booked.length, "ว่าง"],
+    [met.length, "เข้าพบแล้ว"],
+    [onsite.length, "🏫 ออนไซต์"],
+    [online.length, "💻 ออนไลน์"]
+  ].map(([n, l]) => `<div class="stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
+
+  // แถบความคืบหน้า
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  $("dash-progress").innerHTML = my.length === 0
+    ? '<div class="empty">ยังไม่มีคิวในภาคเรียนนี้</div>'
+    : `<div class="progress-row">
+         <div class="plabel"><span>การจองคิว</span><span>${booked.length}/${my.length} (${pct(booked.length, my.length)}%)</span></div>
+         <div class="progress-wrap"><div class="progress-fill blue" style="width:${pct(booked.length, my.length)}%"></div></div>
+       </div>
+       <div class="progress-row">
+         <div class="plabel"><span>เข้าพบแล้ว (จากที่จอง)</span><span>${met.length}/${booked.length} (${pct(met.length, booked.length)}%)</span></div>
+         <div class="progress-wrap"><div class="progress-fill" style="width:${pct(met.length, booked.length)}%"></div></div>
+       </div>`;
+
+  // นักเรียน: ใครจองแล้ว/พบแล้ว/ยังไม่จอง ในภาคเรียนนี้
+  const roster = allStudents
+    .filter(st => st.grade === myRoom.grade && st.room === myRoom.room)
+    .sort((a, b) => a.name.localeCompare(b.name, "th"));
+  if (!roster.length) {
+    $("dash-students").innerHTML = '<div class="empty">ยังไม่มีรายชื่อนักเรียน</div>';
+  } else {
+    const findSlot = st => booked.find(s => s.booking.studentId === st.id) ||
+                           booked.find(s => s.booking.sName === st.name);
+    const metSt = [], bookedSt = [], noneSt = [];
+    roster.forEach(st => {
+      const sl = findSlot(st);
+      if (!sl) noneSt.push(st);
+      else if (sl.booking.met) metSt.push(st);
+      else bookedSt.push(st);
+    });
+    $("dash-students").innerHTML =
+      `<p style="margin-bottom:10px">
+        <span class="badge badge-green">เข้าพบแล้ว ${metSt.length}</span>
+        <span class="badge badge-amber">จองแล้วรอพบ ${bookedSt.length}</span>
+        <span class="badge badge-gray">ยังไม่จอง ${noneSt.length}</span>
+        <span class="badge badge-blue">ทั้งหมด ${roster.length} คน</span></p>` +
+      (noneSt.length
+        ? `<p style="font-size:.85rem;font-weight:600;color:var(--gray-700);margin-bottom:6px">รายชื่อที่ยังไม่จองคิว (สำหรับติดตาม):</p>
+           <p style="font-size:.85rem;line-height:1.9">${noneSt.map(st => `<span class="badge badge-gray">${esc(st.title)} ${esc(st.name)}</span>`).join(" ")}</p>`
+        : '<p class="note">🎉 นักเรียนทุกคนมีการจองคิวแล้ว</p>');
+  }
+
+  // สรุปรายวัน
+  if (!my.length) {
+    $("dash-daily").innerHTML = '<div class="empty">ยังไม่มีข้อมูล</div>';
+  } else {
+    const byDay = {};
+    my.forEach(s => { (byDay[s.date] = byDay[s.date] || []).push(s); });
+    let html = `<table><thead><tr><th>วันที่</th><th>คิว</th><th>จองแล้ว</th><th>เข้าพบแล้ว</th><th>🏫</th><th>💻</th></tr></thead><tbody>`;
+    Object.keys(byDay).sort().forEach(d => {
+      const list = byDay[d], b = list.filter(s => s.booking);
+      html += `<tr>
+        <td>${thaiDate(d)}</td>
+        <td>${list.length}</td>
+        <td>${b.length}</td>
+        <td>${b.filter(s => s.booking.met).length}</td>
+        <td>${b.filter(s => s.booking.mode === "onsite").length}</td>
+        <td>${b.filter(s => s.booking.mode !== "onsite").length}</td>
+      </tr>`;
+    });
+    $("dash-daily").innerHTML = html + "</tbody></table>";
+  }
+}
+
+function renderTeacher() {
+  if (!currentUser) return;
+
+  myRoom = allRooms.find(r => r.uid === currentUser.uid) || null;
+  $("room-setup").classList.toggle("hidden", !!myRoom);
+  $("teacher-main").classList.toggle("hidden", !myRoom);
+  if (!myRoom) return;
+
+  // แถบข้อมูลห้อง
+  $("my-room-title").textContent = `🏫 ห้องประจำชั้น ${myRoom.grade}/${myRoom.room}`;
+  const usedOnsite = onsiteBookedCount(myRoom.grade, myRoom.room, $("t-term").value);
+  $("my-room-sub").textContent = myRoom.onsiteLimit === -1
+    ? `${myRoom.teacherName} · รับเฉพาะออนไลน์`
+    : `${myRoom.teacherName} · จองออนไซต์แล้ว ${usedOnsite}` +
+      (myRoom.onsiteLimit > 0 ? `/${myRoom.onsiteLimit} คน` : " คน (ไม่จำกัดจำนวน)");
+  // อัพเดตตัวควบคุมออนไซต์ตามค่าที่บันทึกไว้ (เว้นตอนกำลังพิมพ์)
+  if (document.activeElement !== $("edit-limit") && document.activeElement !== $("edit-limit-mode")) {
+    $("edit-limit-mode").value = myRoom.onsiteLimit === -1 ? "none" : myRoom.onsiteLimit > 0 ? "limited" : "unlimited";
+    if (myRoom.onsiteLimit > 0) $("edit-limit").value = myRoom.onsiteLimit;
+    onLimitModeChange("edit");
+  }
+
+  renderDashboard();
+
+  // รายชื่อนักเรียน
+  const roster = allStudents
+    .filter(s => s.grade === myRoom.grade && s.room === myRoom.room)
+    .sort((a, b) => a.name.localeCompare(b.name, "th"));
+  $("student-count").textContent = roster.length ? `${roster.length} คน` : "";
+  const sl = $("student-list");
+  if (!roster.length) {
+    sl.innerHTML = '<div class="empty">ยังไม่มีรายชื่อนักเรียน — เพิ่มด้านบนเพื่อให้ผู้ปกครองเลือกชื่อลูกตอนจอง</div>';
+  } else {
+    const met = roster.filter(st => studentStatus(st).slot?.booking?.met).length;
+    let html = `<p style="margin-bottom:8px">
+        <span class="badge badge-green">เข้าพบแล้ว ${met}</span>
+        <span class="badge badge-gray">ทั้งหมด ${roster.length} คน</span></p>
+      <table><thead><tr><th>#</th><th>ชื่อนักเรียน</th><th>สถานะ</th><th></th></tr></thead><tbody>`;
+    roster.forEach((st, i) => {
+      const status = studentStatus(st);
+      html += `<tr>
+        <td>${i + 1}</td>
+        <td>${esc(st.title)} ${esc(st.name)}</td>
+        <td>${status.label}</td>
+        <td><button class="btn-danger" onclick="deleteStudent('${st.id}')">🗑</button></td>
+      </tr>`;
+    });
+    html += "</tbody></table>";
+    sl.innerHTML = html;
+  }
+
+  // คิวนัดของฉัน
+  const term = $("t-term").value;
+  const list = $("teacher-slot-list");
+  const slots = allSlots
+    .filter(s => s.uid === currentUser.uid && s.term === term)
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  if (!slots.length) {
+    list.innerHTML = '<div class="empty">ยังไม่มีช่วงเวลาในภาคเรียนนี้</div>';
+    return;
+  }
+  const booked = slots.filter(s => s.booking).length;
+  const metCount = slots.filter(s => s.booking && s.booking.met).length;
+  let html = `<p style="margin-bottom:8px">
+      <span class="badge badge-blue">ทั้งหมด ${slots.length} คิว</span>
+      <span class="badge badge-amber">จองแล้ว ${booked}</span>
+      <span class="badge badge-green">เข้าพบแล้ว ${metCount}</span>
+      <span class="badge badge-gray">ว่าง ${slots.length - booked}</span></p>
+    <table><thead><tr>
+    <th>วันที่</th><th>เวลา</th><th>รูปแบบ</th><th>นักเรียน</th><th>ผู้ปกครอง</th><th>สถานะ</th><th></th>
+    </tr></thead><tbody>`;
+  slots.forEach(s => {
+    const b = s.booking;
+    html += `<tr>
+      <td style="white-space:nowrap">${thaiDate(s.date)}</td>
+      <td style="white-space:nowrap">${s.start} - ${s.end}</td>
+      <td>${b ? modeBadge(b.mode) : "-"}</td>
+      <td>${b ? esc(b.sTitle) + " " + esc(b.sName) : "-"}</td>
+      <td>${b ? esc(b.pTitle === "อื่น ๆ" ? "" : b.pTitle) + esc(b.pName) : "-"}</td>
+      <td>${
+        !b ? '<span class="badge badge-gray">ว่าง</span>'
+        : b.met ? '<span class="badge badge-green">✓ เข้าพบแล้ว</span>'
+        : `<button class="btn btn-green btn-sm" onclick="markMet('${s.id}')">✓ เข้าพบแล้ว</button>`
+      }</td>
+      <td><button class="btn-danger" onclick="deleteSlot('${s.id}')">🗑</button></td>
+    </tr>`;
+  });
+  html += "</tbody></table>";
+  list.innerHTML = html;
+}
+
+/* ============================================================
+   เริ่มต้นระบบ
+   ============================================================ */
+function init() {
+  if (CONFIG.FIREBASE && window.firebase) {
+    firebase.initializeApp(CONFIG.FIREBASE);
+    store = makeFirebaseStore(firebase);
+  } else {
+    store = makeLocalStore();
+    $("demo-banner").classList.remove("hidden");
+  }
+
+  $("school-name").textContent = CONFIG.SCHOOL_NAME;
+  $("header-term").textContent = CONFIG.ACTIVE_TERM;
+
+  fillSelect($("p-term"), CONFIG.TERMS);
+  fillSelect($("p-grade"), CONFIG.GRADES, "— เลือกระดับชั้น —");
+  fillSelect($("t-term"), CONFIG.TERMS);
+  fillSelect($("d-term"), CONFIG.TERMS);
+  fillSelect($("r-grade"), CONFIG.GRADES);
+  // ค่าเริ่มต้น = ภาคเรียนปัจจุบัน (ปีเก่ายังเลือกดูย้อนหลังได้)
+  $("p-term").value = CONFIG.ACTIVE_TERM;
+  $("t-term").value = CONFIG.ACTIVE_TERM;
+  $("d-term").value = CONFIG.ACTIVE_TERM;
+  $("d-term").addEventListener("change", renderDashboard);
+
+  // ห้องเปลี่ยนตามระดับชั้นที่เลือก (แต่ละชั้นมีจำนวนห้องไม่เท่ากัน)
+  const fillParentRooms = () => fillSelect($("p-room"), $("p-grade").value ? roomsForGrade($("p-grade").value) : [], "— เลือกห้อง —");
+  const fillSetupRooms = () => fillSelect($("r-room"), roomsForGrade($("r-grade").value));
+  fillParentRooms(); fillSetupRooms();
+  $("p-grade").addEventListener("change", fillParentRooms);
+  $("r-grade").addEventListener("change", fillSetupRooms);
+
+  ["p-term", "p-grade", "p-room"].forEach(id => $(id).addEventListener("change", renderParent));
+  $("t-term").addEventListener("change", renderTeacher);
+  $("s-name").addEventListener("keydown", e => { if (e.key === "Enter") addStudent(); });
+  ["au-name", "au-email", "au-pass"].forEach(id =>
+    $(id).addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); }));
+
+  const tm = new Date(Date.now() + 86400000);
+  $("t-date").value = tm.toISOString().slice(0, 10);
+
+  if (!store.demo) {
+    firebase.auth().onAuthStateChanged(u => {
+      if (pendingSignup) return;  // อยู่ระหว่างสมัคร/ส่งอีเมลยืนยัน ยังไม่ต้องทำอะไร
+      // บังคับใช้อีเมลโรงเรียนเท่านั้น
+      if (u && !isAllowedTeacherEmail(u.email)) {
+        firebase.auth().signOut();
+        showAuthErr(`❌ อนุญาตเฉพาะอีเมลโรงเรียน (…@${CONFIG.TEACHER_EMAIL.DOMAIN}) เท่านั้น — คุณเข้าสู่ระบบด้วย ${u.email}`);
+        return;
+      }
+      // ต้องยืนยันอีเมลก่อน (บัญชี Google ถือว่ายืนยันแล้วโดยอัตโนมัติ)
+      if (u && !u.emailVerified) {
+        firebase.auth().signOut();
+        showAuthInfo("⚠️ บัญชีนี้ยังไม่ได้ยืนยันอีเมล\n\n" + VERIFY_MSG(u.email));
+        return;
+      }
+      if (u) hideAuthMsg();
+      currentUser = u ? { uid: u.uid, name: u.displayName, email: u.email, photo: u.photoURL } : null;
+      onAuthChanged();
+    });
+    firebase.auth().getRedirectResult().catch(e => {
+      const err = $("login-error");
+      err.textContent = "เข้าสู่ระบบไม่สำเร็จ: " + (e.code || "") + " " + e.message;
+      err.classList.remove("hidden");
+    });
+    if (location.protocol === "file:") {
+      const err = $("login-error");
+      err.textContent = "⚠️ หน้านี้ถูกเปิดแบบไฟล์ (file://) ซึ่งล็อกอิน Google ไม่ได้ — กรุณาเปิดผ่านเว็บ (http/https)";
+      err.classList.remove("hidden");
+    }
+    // เตือนล่วงหน้าเมื่อเปิดจากเบราว์เซอร์ในแอป (ล็อกอิน Google จะถูกบล็อก)
+    if (isInAppBrowser()) {
+      const err = $("login-error");
+      err.textContent = IN_APP_MSG;
+      err.style.whiteSpace = "pre-line";
+      err.classList.remove("hidden");
+    }
+  }
+
+  store.listen(slots => { allSlots = slots; renderParent(); renderTeacher(); });
+  store.listenRooms(rooms => { allRooms = rooms; renderParent(); renderTeacher(); });
+  store.listenStudents(st => { allStudents = st; renderTeacher(); });
+}
+
+if (CONFIG.FIREBASE) {
+  const load = (src) => new Promise(res => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = res; document.head.appendChild(s);
+  });
+  load("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js")
+    .then(() => Promise.all([
+      load("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"),
+      load("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js")
+    ]))
+    .then(init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
