@@ -296,8 +296,8 @@
 
       <!-- เลือกห้องประจำชั้น (ครั้งแรก) -->
       <div id="room-setup" class="card hidden">
-        <h2>🏫 เลือกห้องประจำชั้นของคุณ</h2>
-        <p class="note" style="margin-bottom:12px">
+        <h2 id="room-setup-title">🏫 เลือกห้องประจำชั้นของคุณ</h2>
+        <p class="note" style="margin-bottom:12px" id="room-setup-note">
           เลือกครั้งเดียว ระบบจะผูกห้องนี้กับบัญชีของคุณ (1 ห้องมีครูประจำชั้นได้ 1 ท่าน เพื่อไม่ให้สร้างเวลานัดซ้ำซ้อนกัน)
         </p>
         <div class="row">
@@ -343,7 +343,8 @@
           <label for="r-place">สถานที่นัดพบออนไซต์ (แสดงให้ผู้ปกครองเห็น)</label>
           <input type="text" id="r-place" placeholder="เช่น ห้องเรียน ป.5/3 อาคาร 2 ชั้น 3">
         </div>
-        <button class="btn" onclick="claimRoom()">✅ ยืนยันห้องประจำชั้น</button>
+        <button class="btn" id="room-submit" onclick="claimRoom()">✅ ยืนยันห้องประจำชั้น</button>
+        <button class="btn btn-outline hidden" id="room-cancel" onclick="cancelRoomEdit()">ยกเลิก</button>
         <div id="room-error" class="error-msg hidden"></div>
       </div>
 
@@ -374,7 +375,7 @@
             <input type="text" id="edit-place" placeholder="เช่น ห้องเรียน ป.5/3 อาคาร 2" style="flex:1;padding:6px 8px">
             <button class="btn btn-sm" onclick="saveLimit()">บันทึก</button>
           </div>
-          <button class="btn btn-outline btn-sm" onclick="changeRoom()">เปลี่ยนห้อง</button>
+          <button class="btn btn-outline btn-sm" onclick="openRoomEdit()">✏️ แก้ไขชั้น/ห้อง/ชื่อครู</button>
         </div>
 
         <!-- แท็บย่อย: คิวนัด / รายชื่อนักเรียน / แดชบอร์ด -->
@@ -649,6 +650,11 @@ function makeLocalStore() {
     async addSlots(ns) { const s = read(KEYS.slots); ns.forEach(x => s.push(x)); write(KEYS.slots, s); notify("slots"); },
     async deleteSlot(id) { write(KEYS.slots, read(KEYS.slots).filter(s => s.id !== id)); notify("slots"); },
     async deleteSlots(ids) { const set = new Set(ids); write(KEYS.slots, read(KEYS.slots).filter(s => !set.has(s.id))); notify("slots"); },
+    async updateSlots(ids, patch) {
+      const set = new Set(ids);
+      write(KEYS.slots, read(KEYS.slots).map(s => set.has(s.id) ? { ...s, ...patch } : s));
+      notify("slots");
+    },
     async book(id, booking) {
       const slots = read(KEYS.slots);
       const slot = slots.find(s => s.id === id);
@@ -683,7 +689,12 @@ function makeLocalStore() {
       write(KEYS.students, st); notify("students");
     },
     async deleteStudent(id) { write(KEYS.students, read(KEYS.students).filter(s => s.id !== id)); notify("students"); },
-    async deleteStudents(ids) { const set = new Set(ids); write(KEYS.students, read(KEYS.students).filter(s => !set.has(s.id))); notify("students"); }
+    async deleteStudents(ids) { const set = new Set(ids); write(KEYS.students, read(KEYS.students).filter(s => !set.has(s.id))); notify("students"); },
+    async updateStudents(ids, patch) {
+      const set = new Set(ids);
+      write(KEYS.students, read(KEYS.students).map(s => set.has(s.id) ? { ...s, ...patch } : s));
+      notify("students");
+    }
   };
 }
 
@@ -703,6 +714,13 @@ function makeFirebaseStore(fb) {
       await batch.commit();
     }
   };
+  const batchUpdate = async (col, ids, patch) => {
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = db.batch();
+      ids.slice(i, i + 400).forEach(id => batch.update(col.doc(id), patch));
+      await batch.commit();
+    }
+  };
   return {
     demo: false,
     listen(cb)         { listenCol(slots, cb); },
@@ -715,6 +733,7 @@ function makeFirebaseStore(fb) {
     },
     async deleteSlot(id) { await slots.doc(id).delete(); },
     async deleteSlots(ids) { await batchDelete(slots, ids); },
+    async updateSlots(ids, patch) { await batchUpdate(slots, ids, patch); },
     async book(id, booking) {
       const ref = slots.doc(id);
       return db.runTransaction(async tx => {
@@ -747,7 +766,8 @@ function makeFirebaseStore(fb) {
     async releaseRoom(id) { await rooms.doc(id).delete(); },
     async addStudent(data) { await students.add(data); },
     async deleteStudent(id) { await students.doc(id).delete(); },
-    async deleteStudents(ids) { await batchDelete(students, ids); }
+    async deleteStudents(ids) { await batchDelete(students, ids); },
+    async updateStudents(ids, patch) { await batchUpdate(students, ids, patch); }
   };
 }
 
@@ -1230,6 +1250,41 @@ function limitFromControls(modeSel, numInput) {
   return Math.max(1, parseInt(numInput.value, 10) || 1);
 }
 
+/* โหมดแก้ไขข้อมูลห้อง (ชั้น/ห้อง/ชื่อครู/ค่าต่าง ๆ) */
+let roomEditMode = false;
+
+function openRoomEdit() {
+  if (!myRoom) return;
+  roomEditMode = true;
+  $("r-grade").value = myRoom.grade;
+  $("r-grade").dispatchEvent(new Event("change"));
+  $("r-room").value = myRoom.room;
+  $("r-teacher").value = myRoom.teacherName || "";
+  $("r-limit-mode").value = myRoom.onsiteLimit === -1 ? "none" : myRoom.onsiteLimit > 0 ? "limited" : "unlimited";
+  if (myRoom.onsiteLimit > 0) $("r-limit").value = myRoom.onsiteLimit;
+  onLimitModeChange("r");
+  const w = roomOnsiteWindow(myRoom);
+  $("r-on-start").value = w.start;
+  $("r-on-end").value = w.end;
+  $("r-place").value = myRoom.onsitePlace || "";
+  $("room-setup-title").textContent = "✏️ แก้ไขข้อมูลห้องประจำชั้น";
+  $("room-setup-note").textContent = "แก้ชื่อครู ระดับชั้น หรือห้องได้ — ถ้าเปลี่ยนชั้น/ห้อง ระบบจะย้ายคิวนัดและรายชื่อนักเรียนตามไปให้ทั้งหมด";
+  $("room-submit").textContent = "💾 บันทึกการแก้ไข";
+  $("room-cancel").classList.remove("hidden");
+  $("room-error").classList.add("hidden");
+  renderTeacher();
+}
+
+function cancelRoomEdit() {
+  roomEditMode = false;
+  $("room-setup-title").textContent = "🏫 เลือกห้องประจำชั้นของคุณ";
+  $("room-setup-note").textContent = "เลือกครั้งเดียว ระบบจะผูกห้องนี้กับบัญชีของคุณ (1 ห้องมีครูประจำชั้นได้ 1 ท่าน เพื่อไม่ให้สร้างเวลานัดซ้ำซ้อนกัน)";
+  $("room-submit").textContent = "✅ ยืนยันห้องประจำชั้น";
+  $("room-cancel").classList.add("hidden");
+  $("room-error").classList.add("hidden");
+  renderTeacher();
+}
+
 async function claimRoom() {
   const grade = $("r-grade").value, room = $("r-room").value;
   const teacherName = $("r-teacher").value.trim();
@@ -1237,14 +1292,47 @@ async function claimRoom() {
   const err = $("room-error");
   err.classList.add("hidden");
   if (!teacherName) { err.textContent = "กรุณากรอกชื่อครูประจำชั้น"; err.classList.remove("hidden"); return; }
+  const st = $("r-on-start").value || "", en = $("r-on-end").value || "";
+  if (st && en && st >= en) {
+    err.textContent = "ช่วงเวลาออนไซต์ไม่ถูกต้อง — เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด";
+    err.classList.remove("hidden"); return;
+  }
+  const data = {
+    uid: currentUser.uid, grade, room, teacherName, onsiteLimit: limit,
+    onsitePlace: $("r-place").value.trim(), onsiteStart: st, onsiteEnd: en
+  };
+  const btn = $("room-submit");
+  btn.disabled = true;
   try {
-    await store.claimRoom(roomId(grade, room), {
-      uid: currentUser.uid, grade, room, teacherName, onsiteLimit: limit,
-      onsitePlace: $("r-place").value.trim(),
-      onsiteStart: $("r-on-start").value || "",
-      onsiteEnd: $("r-on-end").value || ""
-    });
+    if (roomEditMode && myRoom) {
+      const oldRoom = myRoom, newId = roomId(grade, room);
+      const moving = newId !== oldRoom.id;
+      const mySlots = allSlots.filter(s => s.uid === currentUser.uid
+        && s.grade === oldRoom.grade && s.room === oldRoom.room);
+      if (moving) {
+        const mates = allStudents.filter(s => s.uid === currentUser.uid
+          && s.grade === oldRoom.grade && s.room === oldRoom.room);
+        if (!confirm(`ย้ายจากห้อง ${oldRoom.grade}/${oldRoom.room} ไปเป็น ${grade}/${room}?\n\n` +
+                     `คิวนัด ${mySlots.length} คิว และรายชื่อนักเรียน ${mates.length} คน จะถูกย้ายตามไปด้วย`)) {
+          btn.disabled = false; return;
+        }
+        await store.claimRoom(newId, data);   // จะแจ้งเตือนถ้าห้องใหม่มีครูอยู่แล้ว
+        if (mySlots.length) await store.updateSlots(mySlots.map(s => s.id), { grade, room, teacher: teacherName });
+        if (mates.length) await store.updateStudents(mates.map(s => s.id), { grade, room });
+        await store.releaseRoom(oldRoom.id);
+      } else {
+        await store.updateRoom(oldRoom.id, data);
+        // ชื่อครูที่แสดงในคิวเดิม ต้องอัปเดตตามด้วย
+        const stale = mySlots.filter(s => s.teacher !== teacherName);
+        if (stale.length) await store.updateSlots(stale.map(s => s.id), { teacher: teacherName });
+      }
+      cancelRoomEdit();
+      btn.disabled = false;
+      return;
+    }
+    await store.claimRoom(roomId(grade, room), data);
   } catch (e) {
+    btn.disabled = false;
     err.textContent = e.message === "ROOM_TAKEN"
       ? `❌ ห้อง ${grade}/${room} มีครูประจำชั้นแล้ว (${e.teacherName || "ไม่ระบุชื่อ"}) — กรุณาเลือกห้องอื่น หรือติดต่อผู้ดูแลระบบ`
       : "เกิดข้อผิดพลาด: " + e.message;
@@ -1266,12 +1354,6 @@ async function saveLimit() {
     onsiteStart: st,
     onsiteEnd: en
   });
-}
-
-async function changeRoom() {
-  if (!myRoom) return;
-  if (!confirm(`ยกเลิกการดูแลห้อง ${myRoom.grade}/${myRoom.room} เพื่อเลือกห้องใหม่?\n(คิวนัดและรายชื่อนักเรียนของห้องเดิมจะยังอยู่)`)) return;
-  await store.releaseRoom(myRoom.id);
 }
 
 /* ============================================================
@@ -1633,8 +1715,9 @@ function renderTeacher() {
   if (!currentUser) return;
 
   myRoom = allRooms.find(r => r.uid === currentUser.uid) || null;
-  $("room-setup").classList.toggle("hidden", !!myRoom);
-  $("teacher-main").classList.toggle("hidden", !myRoom);
+  if (!myRoom) roomEditMode = false;
+  $("room-setup").classList.toggle("hidden", !!myRoom && !roomEditMode);
+  $("teacher-main").classList.toggle("hidden", !myRoom || roomEditMode);
   if (!myRoom) return;
 
   // แถบข้อมูลห้อง
