@@ -549,12 +549,8 @@
 </div>
 
 <footer>
-  <span style="display:inline-flex;gap:14px;flex-wrap:wrap;justify-content:center">
-    <a href="guide-parent.html"
-       style="color:var(--primary);font-weight:600;text-decoration:none">📖 วิธีใช้งานสำหรับผู้ปกครอง</a>
-    <a href="guide-teacher.html"
-       style="color:var(--primary);font-weight:600;text-decoration:none">📖 วิธีใช้งานสำหรับคุณครู</a>
-  </span>
+  <a id="footer-guide" href="guide-parent.html"
+     style="color:var(--primary);font-weight:600;text-decoration:none">📖 วิธีใช้งานสำหรับผู้ปกครอง</a>
   <div style="margin-top:8px">ระบบการนัดพบครูประจำชั้น · โรงเรียนมารีวิทย์ระยอง</div>
 </footer>
 
@@ -781,6 +777,10 @@ function switchTab(tab) {
   $("tab-teacher").classList.toggle("active", tab === "teacher");
   $("page-parent").classList.toggle("hidden", tab !== "parent");
   $("page-teacher").classList.toggle("hidden", tab !== "teacher");
+  // ลิงก์คู่มือท้ายหน้า เปลี่ยนตามกลุ่มผู้ใช้ที่กำลังดูอยู่
+  const g = $("footer-guide");
+  if (tab === "teacher") { g.href = "guide-teacher.html"; g.textContent = "📖 วิธีใช้งานสำหรับคุณครู"; }
+  else { g.href = "guide-parent.html"; g.textContent = "📖 วิธีใช้งานสำหรับผู้ปกครอง"; }
 }
 
 /* แท็บย่อยในหน้าคุณครู: คิวนัด / รายชื่อนักเรียน / แดชบอร์ด */
