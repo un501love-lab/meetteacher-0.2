@@ -432,12 +432,13 @@
           </div>
 
           <div class="field" style="border-top:1px dashed var(--gray-200);padding-top:12px">
-            <label>หรืออัพโหลดไฟล์รายชื่อทั้งห้อง (.txt / .csv — บรรทัดละ 1 คน)</label>
+            <label>หรืออัพโหลดไฟล์รายชื่อทั้งห้อง (Excel / .csv / .txt)</label>
             <p class="note" style="margin-bottom:8px">
-              ตัวอย่างบรรทัด: <code>ด.ช. สมชาย เรียนดี</code> หรือ <code>เด็กหญิง สมหญิง ขยันเรียน</code><br>
-              จาก Excel ให้เลือก บันทึกเป็น → CSV ได้เลย (คอลัมน์เลขที่/หัวตารางระบบจะข้ามให้อัตโนมัติ)
+              ใช้ไฟล์ Excel (.xlsx) ได้เลย ไม่ต้องแปลงเป็น CSV ก่อน — บรรทัดละ 1 คน<br>
+              ตัวอย่าง: <code>ด.ช. สมชาย เรียนดี</code> หรือแยกช่อง <code>ด.ช.</code> | <code>สมชาย เรียนดี</code><br>
+              คอลัมน์เลขที่และหัวตาราง ระบบจะข้ามให้อัตโนมัติ
             </p>
-            <input type="file" id="s-file" accept=".txt,.csv" style="display:none" onchange="importStudentsFile(this)">
+            <input type="file" id="s-file" accept=".xlsx,.csv,.txt" style="display:none" onchange="importStudentsFile(this)">
             <button class="btn btn-outline" onclick="document.getElementById('s-file').click()">📂 เลือกไฟล์รายชื่อ</button>
             <span id="import-msg" class="note" style="margin-left:10px"></span>
           </div>
@@ -1283,14 +1284,96 @@ function parseStudentLine(line) {
   return text ? { title, name: text } : null;
 }
 
+/* ---------- อ่านไฟล์ Excel (.xlsx) โดยไม่ต้องใช้ไลบรารีภายนอก ----------
+   .xlsx คือไฟล์ ZIP ที่ข้างในเป็น XML — แกะด้วย DecompressionStream ของเบราว์เซอร์ */
+async function inflateRaw(bytes) {
+  const s = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+async function readZip(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= 0 && i > buf.byteLength - 66000; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("ไฟล์ไม่ใช่ Excel (.xlsx) ที่ถูกต้อง");
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const files = {};
+  const dec = new TextDecoder("utf-8");
+  for (let i = 0; i < count; i++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method   = dv.getUint16(off + 10, true);
+    const compSize = dv.getUint32(off + 20, true);
+    const nameLen  = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const cmtLen   = dv.getUint16(off + 32, true);
+    const localOff = dv.getUint32(off + 42, true);
+    // บางโปรแกรมเขียนชื่อไฟล์ด้วย \ แทน / — ปรับให้เป็นแบบมาตรฐาน
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen)).replace(/\\/g, "/");
+    const lName  = dv.getUint16(localOff + 26, true);
+    const lExtra = dv.getUint16(localOff + 28, true);
+    const start = localOff + 30 + lName + lExtra;
+    files[name] = { method, data: u8.subarray(start, start + compSize) };
+    off += 46 + nameLen + extraLen + cmtLen;
+  }
+  return files;
+}
+
+async function zipText(files, name) {
+  const f = files[name];
+  if (!f) return null;
+  const raw = f.method === 0 ? f.data : await inflateRaw(f.data);
+  return new TextDecoder("utf-8").decode(raw);
+}
+
+/* แปลงชีตแรกของไฟล์ Excel เป็นบรรทัดข้อความ (1 แถว = 1 บรรทัด) */
+async function xlsxToLines(buf) {
+  if (typeof DecompressionStream === "undefined")
+    throw new Error("เบราว์เซอร์นี้เปิดไฟล์ Excel ไม่ได้ กรุณาบันทึกเป็น CSV แล้วอัพโหลดใหม่");
+  const files = await readZip(buf);
+  const sheetName = Object.keys(files)
+    .filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n))
+    .sort()[0];
+  if (!sheetName) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+
+  // คลังข้อความที่ Excel เก็บแยกไว้
+  let shared = [];
+  const ssXml = await zipText(files, "xl/sharedStrings.xml");
+  if (ssXml) {
+    const doc = new DOMParser().parseFromString(ssXml, "application/xml");
+    shared = [...doc.getElementsByTagName("si")].map(si =>
+      [...si.getElementsByTagName("t")].map(t => t.textContent).join(""));
+  }
+
+  const doc = new DOMParser().parseFromString(await zipText(files, sheetName), "application/xml");
+  return [...doc.getElementsByTagName("row")].map(row =>
+    [...row.getElementsByTagName("c")].map(c => {
+      const t = c.getAttribute("t");
+      if (t === "inlineStr") {
+        return [...c.getElementsByTagName("t")].map(x => x.textContent).join("");
+      }
+      const v = c.getElementsByTagName("v")[0];
+      if (!v) return "";
+      return t === "s" ? (shared[+v.textContent] || "") : v.textContent;
+    }).join(",")
+  ).map(l => l.trim()).filter(Boolean);
+}
+
 async function importStudentsFile(input) {
   const file = input.files && input.files[0];
   const msg = $("import-msg");
   if (!file || !myRoom) return;
   msg.textContent = "⏳ กำลังนำเข้า...";
   try {
-    const text = decodeSmart(await file.arrayBuffer());
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const buf = await file.arrayBuffer();
+    const isXlsx = /\.xlsx$/i.test(file.name);
+    if (/\.xls$/i.test(file.name))
+      throw new Error("ไฟล์ .xls รุ่นเก่ายังไม่รองรับ กรุณาบันทึกเป็น .xlsx หรือ CSV");
+    const lines = isXlsx
+      ? await xlsxToLines(buf)
+      : decodeSmart(buf).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const seen = new Set(allStudents
       .filter(s => s.grade === myRoom.grade && s.room === myRoom.room)
       .map(s => s.name));
