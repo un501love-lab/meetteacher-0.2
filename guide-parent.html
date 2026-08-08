@@ -255,9 +255,12 @@
       <li data-for="teacher"><b>ครูเข้าระบบด้วยอีเมลโรงเรียนเท่านั้น</b> (@mvschool.ac.th) อีเมลอื่นระบบไม่อนุญาต</li>
       <li data-for="teacher"><b>1 ห้องเรียน มีครูประจำชั้นได้ 1 ท่าน</b> ใครเลือกก่อนได้ก่อน กันการสร้างเวลานัดซ้ำซ้อน</li>
       <li data-for="teacher"><b>ถ้ากดปุ่ม Google แล้วไม่ขึ้นอะไร</b> ให้เปิดเว็บในเบราว์เซอร์ปกติ (ไม่ใช่ในแอป LINE หรือ TikTok) หรือใช้วิธีสมัครด้วยอีเมลและรหัสผ่านแทน</li>
+      <li data-for="teacher"><b>คุณครูกำหนดเวลาออนไซต์ที่ต้องการได้เอง</b> คิวที่อยู่นอกช่วงเวลานั้น ผู้ปกครองจะเลือกได้เฉพาะออนไลน์ · แก้เวลาเมื่อไหร่ ฝั่งผู้ปกครองเปลี่ยนตามทันที</li>
+      <li data-for="teacher"><b>พิมพ์สถานที่นัดพบได้</b> ผู้ปกครองจะเห็นตอนเลือกออนไซต์และในใบยืนยันการจอง</li>
       <li data-for="teacher"><b>ข้อมูลถูกเก็บทุกปีการศึกษา</b> เลือกดูภาคเรียนย้อนหลังได้ที่หน้าแดชบอร์ด</li>
       <li data-for="parent"><b>ไม่ต้องสมัครหรือเข้าสู่ระบบ</b> เปิดลิงก์แล้วจองได้ทันที</li>
-      <li data-for="parent"><b>เลือกได้ว่าจะพบแบบออนไซต์หรือออนไลน์</b> ถ้าออนไซต์เต็มโควตาแล้ว ระบบจะให้เลือกออนไลน์แทน</li>
+      <li data-for="parent"><b>ออนไซต์เลือกได้เฉพาะช่วงเวลาที่คุณครูกำหนด</b> นอกเวลานั้น หรือเมื่อออนไซต์เต็มแล้ว ระบบจะให้เลือกออนไลน์แทน</li>
+      <li data-for="parent"><b>ถ้าเลือกออนไซต์ ระบบจะบอกสถานที่นัดพบ</b> ดูได้ทั้งตอนจองและในใบยืนยัน</li>
       <li data-for="parent"><b>จองเสร็จแล้วบันทึกภาพหน้าจอไว้</b> ใช้เป็นหลักฐานยืนยันนัดหมาย</li>
       <li data-for="both"><b>เวลาที่ถูกจองแล้วจะหายไปทันที</b> ผู้ปกครองท่านอื่นจะไม่เห็นและจองซ้ำไม่ได้</li>
     </ul>
@@ -285,8 +288,8 @@
           </div></div></div>` },
 
       { t:"กดปุ่ม “เข้าสู่ระบบด้วย Google”",
-        d:"เลือกบัญชีอีเมลโรงเรียนของคุณ ไม่ต้องตั้งรหัสผ่านใหม่",
-        tip:"ถ้าเข้าด้วย Google ไม่ได้ ให้กดแท็บ “สมัครใช้งาน” แล้วตั้งรหัสผ่านเอง ระบบจะส่งลิงก์ยืนยันไปที่อีเมลโรงเรียน (ตรวจกล่องจดหมายขยะด้วย)",
+        d:"เลือกบัญชีอีเมลโรงเรียน @mvschool.ac.th ของคุณ ไม่ต้องตั้งรหัสผ่านใหม่",
+        tip:"ถ้าเข้าด้วย Google ไม่ได้ (เช่น เปิดจากในแอป LINE หรือป๊อปอัปโดนบล็อก) ให้กดแท็บ “สมัครใช้งาน” แล้วตั้งรหัสผ่านเอง ระบบจะส่งลิงก์ยืนยันไปที่อีเมลโรงเรียน — ถ้าไม่พบ ให้ดูในกล่องจดหมายขยะ",
         s:`<div class="m">${head(1)}
           <div class="m-body"><div class="m-card" style="text-align:center">
             <h4>🔒 สำหรับคุณครู</h4>
@@ -297,30 +300,36 @@
             <div class="m-btn o hl">🔑 เข้าสู่ระบบด้วย Google</div>
           </div></div></div>` },
 
-      { t:"เลือกห้องประจำชั้นของตัวเอง",
-        d:"ทำครั้งเดียวตอนเข้าครั้งแรก ระบบจะผูกห้องนี้กับบัญชีของคุณ",
-        tip:"1 ห้องมีครูประจำชั้นได้ 1 ท่าน ถ้าเลือกห้องที่มีคนเลือกไปแล้ว ระบบจะแจ้งชื่อครูท่านนั้นให้ทราบ",
+      { t:"เลือกห้องประจำชั้น และตั้งค่าการนัดพบ",
+        d:"ทำครั้งเดียวตอนเข้าครั้งแรก — เลือกห้อง กำหนดจำนวนรับออนไซต์ เวลาออนไซต์ที่ต้องการ และสถานที่นัดพบ",
+        tip:"1 ห้องมีครูประจำชั้นได้ 1 ท่าน ถ้าเลือกห้องที่มีคนเลือกไปแล้ว ระบบจะแจ้งชื่อครูท่านนั้นให้ทราบ · ทุกค่าแก้ทีหลังได้ที่แถบด้านบนของหน้าคุณครู",
         s:`<div class="m">${head(1)}
           <div class="m-body"><div class="m-card">
             <h4>🏫 เลือกห้องประจำชั้นของคุณ</h4>
             <div class="m-r m-f"><div><div class="m-lbl">ระดับชั้น</div><div class="m-in sel">ป.5</div></div>
               <div><div class="m-lbl">ห้อง</div><div class="m-in sel">3</div></div></div>
             <div class="m-f"><div class="m-lbl">ชื่อครูประจำชั้น</div><div class="m-in">ครูสมศรี ใจดี</div></div>
-            <div class="m-f"><div class="m-lbl">รับนัดออนไซต์ทั้งหมด (คน)</div><div class="m-in">20</div></div>
-            <div class="m-btn hl">✅ ยืนยันห้องประจำชั้น</div>
+            <div class="m-f"><div class="m-lbl">การรับนัดออนไซต์</div><div class="m-in sel">รับออนไซต์ กำหนดจำนวน 20 คน</div></div>
+            <div class="m-r m-f"><div><div class="m-lbl">เวลาออนไซต์ที่ต้องการ</div><div class="m-in hl">16:00</div></div>
+              <div><div class="m-lbl">ถึงเวลา</div><div class="m-in hl">18:30</div></div></div>
+            <div class="m-f"><div class="m-lbl">สถานที่นัดพบออนไซต์</div><div class="m-in hl">ห้องเรียน ป.5/3 อาคาร 2</div></div>
+            <div class="m-btn">✅ ยืนยันห้องประจำชั้น</div>
           </div></div></div>` },
 
       { t:"เพิ่มรายชื่อนักเรียนในห้อง",
-        d:"พิมพ์ทีละคน หรืออัปโหลดไฟล์รายชื่อทั้งห้องทีเดียว",
-        tip:"ไฟล์รองรับ .txt และ .csv จาก Excel ให้กด “บันทึกเป็น CSV” ระบบข้ามหัวตารางและเลขที่ให้อัตโนมัติ",
+        d:"พิมพ์ทีละคน หรืออัปโหลดไฟล์ Excel รายชื่อทั้งห้องทีเดียว",
+        tip:"ใช้ไฟล์ Excel (.xlsx) ได้เลย ไม่ต้องแปลงเป็น CSV ก่อน · ระบบข้ามหัวตารางกับคอลัมน์เลขที่ให้อัตโนมัติ และแปลง ด.ช./ด.ญ./น.ส. เป็นคำเต็มให้ · ปุ่มแดง “ลบรายชื่อทั้งหมด” ใช้ตอนขึ้นปีใหม่",
         s:`<div class="m">${head(1)}
           <div class="m-body">
             <div class="m-sub"><div>📋 คิวนัด</div><div class="on hl">👧 รายชื่อนักเรียน</div><div>📊 แดชบอร์ด</div></div>
             <div class="m-card">
-              <h4>👧 รายชื่อนักเรียนในห้อง <span class="m-bd b">3 คน</span></h4>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                <h4 style="margin:0;flex:1">👧 รายชื่อนักเรียน <span class="m-bd b">3 คน</span></h4>
+                <span class="m-btn" style="background:#DC2626;padding:4px 8px;font-size:9px">🗑 ลบทั้งหมด</span>
+              </div>
               <div class="m-r m-f"><div style="flex:0 0 78px"><div class="m-lbl">คำนำหน้า</div><div class="m-in sel">ด.ช.</div></div>
                 <div><div class="m-lbl">ชื่อ - สกุล</div><div class="m-in ph">เช่น สมชาย เรียนดี</div></div></div>
-              <div class="m-btn o hl" style="width:100%">📂 เลือกไฟล์รายชื่อ</div>
+              <div class="m-btn o hl" style="width:100%">📂 เลือกไฟล์รายชื่อ (Excel / CSV)</div>
               <table class="m-tbl" style="margin-top:9px"><tr><th>#</th><th>ชื่อนักเรียน</th><th>สถานะ</th></tr>
                 <tr><td>1</td><td>เด็กชาย สมชาย เรียนดี</td><td><span class="m-bd n">ยังไม่จอง</span></td></tr>
                 <tr><td>2</td><td>เด็กหญิง สมหญิง ขยันเรียน</td><td><span class="m-bd n">ยังไม่จอง</span></td></tr>
@@ -329,7 +338,7 @@
 
       { t:"สร้างช่วงเวลาที่ว่างให้ผู้ปกครองจอง",
         d:"ใส่วันที่ เวลาเริ่ม–สิ้นสุด และนาทีต่อคิว ระบบจะแบ่งเป็นคิวย่อยให้เอง",
-        tip:"เช่น 09:00–12:00 คิวละ 15 นาที ระบบสร้างให้ 12 คิวอัตโนมัติ",
+        tip:"เช่น 09:00–12:00 คิวละ 15 นาที ระบบสร้างให้ 12 คิวอัตโนมัติ · คิวที่อยู่นอก “เวลาออนไซต์ที่ต้องการ” ผู้ปกครองจะเลือกได้เฉพาะออนไลน์ · ถ้าต้องการเริ่มใหม่ทั้งหมด กดปุ่มแดง “ลบคิวทั้งหมด” ที่การ์ดคิวนัด",
         s:`<div class="m">${head(1)}
           <div class="m-body">
             <div class="m-sub"><div class="on">📋 คิวนัด</div><div>👧 รายชื่อนักเรียน</div><div>📊 แดชบอร์ด</div></div>
@@ -348,7 +357,10 @@
         tip:"เมื่อกดปุ่มนี้ สถานะในหน้ารายชื่อนักเรียนจะเปลี่ยนเป็น “เข้าพบแล้ว” ให้อัตโนมัติ",
         s:`<div class="m">${head(1)}
           <div class="m-body"><div class="m-card">
-            <h4>📋 คิวนัดของฉัน</h4>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+              <h4 style="margin:0;flex:1">📋 คิวนัดของฉัน</h4>
+              <span class="m-btn" style="background:#DC2626;padding:4px 8px;font-size:9px">🗑 ลบคิวทั้งหมด</span>
+            </div>
             <div style="margin-bottom:7px"><span class="m-bd b">ทั้งหมด 12</span> <span class="m-bd a">จองแล้ว 5</span> <span class="m-bd g">เข้าพบแล้ว 2</span></div>
             <table class="m-tbl">
               <tr><th>เวลา</th><th>รูปแบบ</th><th>นักเรียน</th><th>สถานะ</th></tr>
@@ -388,7 +400,7 @@
             <div class="m-r"><div><div class="m-lbl">ภาคเรียน</div><div class="m-in sel">1/2569</div></div>
               <div><div class="m-lbl">ระดับชั้น</div><div class="m-in sel hl">ป.5</div></div>
               <div><div class="m-lbl">ห้อง</div><div class="m-in sel hl">3</div></div></div>
-            <p class="m-note" style="margin-top:8px">ครูประจำชั้น: ครูสมศรี ใจดี</p>
+            <p class="m-note" style="margin-top:8px">ครูประจำชั้น: ครูสมศรี ใจดี · พบที่โรงเรียนได้เฉพาะเวลา 16:00 - 18:30 น. นอกเวลานี้เลือกออนไลน์</p>
           </div></div></div>` },
 
       { t:"กดเลือกเวลาที่ต้องการ",
@@ -408,14 +420,17 @@
 
       { t:"เลือกรูปแบบการพบ แล้วกรอกชื่อ",
         d:"เลือกออนไซต์หรือออนไลน์ เลือกชื่อนักเรียน และกรอกชื่อผู้ปกครอง",
-        tip:"ถ้าครูใส่รายชื่อนักเรียนไว้แล้ว จะเลือกชื่อลูกจากรายการได้เลย ไม่ต้องพิมพ์",
+        tip:"ปุ่มออนไซต์จะกดได้เฉพาะคิวที่อยู่ในเวลาที่คุณครูกำหนด และจะแสดงสถานที่นัดพบให้เห็น · ถ้าคิวอยู่นอกเวลานั้นหรือออนไซต์เต็มแล้ว ระบบจะให้เลือกออนไลน์ · ถ้าครูใส่รายชื่อนักเรียนไว้ จะเลือกชื่อลูกจากรายการได้เลย ไม่ต้องพิมพ์",
         s:`<div class="m"><div class="m-url"><i class="m-dot"></i><span>un501love-lab.github.io/meetteacher-0.2</span></div>
           <div class="m-body" style="padding:14px">
             <div class="m-card">
               <h4>📝 ลงทะเบียนนัดพบครู</h4>
               <div class="m-ok" style="background:#DBEAFE;color:#1E3A8A;margin-bottom:9px">ชั้น ป.5/3 · 18 ก.ค. 2569<br>เวลา 09:15 - 09:30 น. · ครูสมศรี ใจดี</div>
               <div class="m-lbl">รูปแบบการเข้าพบ</div>
-              <div class="m-sub" style="margin-top:4px"><div class="on hl">🏫 ออนไซต์</div><div>💻 ออนไลน์</div></div>
+              <div class="m-sub" style="margin-top:4px">
+                <div class="on hl">🏫 ออนไซต์<div class="m-note" style="font-weight:400">ห้องเรียน ป.5/3 อาคาร 2</div></div>
+                <div>💻 ออนไลน์<div class="m-note" style="font-weight:400">พบผ่านวิดีโอคอล</div></div>
+              </div>
               <div class="m-f"><div class="m-lbl">ชื่อนักเรียน</div><div class="m-in sel">เด็กชาย สมชาย เรียนดี</div></div>
               <div class="m-r m-f"><div style="flex:0 0 70px"><div class="m-lbl">คำนำหน้า</div><div class="m-in sel">นาย</div></div>
                 <div><div class="m-lbl">ชื่อ - สกุลผู้ปกครอง</div><div class="m-in">สมศักดิ์ เรียนดี</div></div></div>
@@ -432,6 +447,7 @@
               <h4 style="color:#16A34A;font-size:13px;margin:5px 0 8px">จองเวลาสำเร็จ!</h4>
               <div class="m-ok" style="text-align:left">
                 <b>รูปแบบ:</b> 🏫 ออนไซต์ (พบที่โรงเรียน)<br>
+                <b>สถานที่:</b> ห้องเรียน ป.5/3 อาคาร 2<br>
                 <b>นักเรียน:</b> เด็กชายสมชาย เรียนดี<br>
                 <b>ผู้ปกครอง:</b> นายสมศักดิ์ เรียนดี<br>
                 <b>ห้อง:</b> ป.5/3 · ภาคเรียนที่ 1/2569<br>
