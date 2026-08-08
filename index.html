@@ -328,6 +328,17 @@
             <input type="number" id="r-limit" min="1" value="20">
           </div>
         </div>
+        <div class="row">
+          <div class="field">
+            <label for="r-on-start">ออนไซต์ได้ตั้งแต่เวลา</label>
+            <input type="time" id="r-on-start" value="16:00">
+          </div>
+          <div class="field">
+            <label for="r-on-end">ถึงเวลา</label>
+            <input type="time" id="r-on-end" value="18:30">
+          </div>
+        </div>
+        <p class="note" style="margin:-4px 0 12px">คิวที่อยู่นอกช่วงเวลานี้ ผู้ปกครองจะเลือกได้เฉพาะออนไลน์</p>
         <div class="field">
           <label for="r-place">สถานที่นัดพบออนไซต์ (แสดงให้ผู้ปกครองเห็น)</label>
           <input type="text" id="r-place" placeholder="เช่น ห้องเรียน ป.5/3 อาคาร 2 ชั้น 3">
@@ -351,6 +362,12 @@
               <option value="none">ไม่รับ (ออนไลน์เท่านั้น)</option>
             </select>
             <input type="number" id="edit-limit" min="1" style="width:70px;padding:6px 8px" class="hidden">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="margin:0;font-size:.8rem;white-space:nowrap">เวลา:</label>
+            <input type="time" id="edit-on-start" style="width:auto;padding:6px 8px">
+            <span style="font-size:.8rem">–</span>
+            <input type="time" id="edit-on-end" style="width:auto;padding:6px 8px">
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px">
             <label style="margin:0;font-size:.8rem;white-space:nowrap">สถานที่:</label>
@@ -407,8 +424,11 @@
 
         <!-- คิวนัดของฉัน -->
         <div class="card">
-          <h2>📋 คิวนัดของฉัน</h2>
-          <p class="note" style="margin-bottom:10px">ตามภาคเรียนที่เลือกด้านบน — เมื่อพบผู้ปกครองแล้ว กดปุ่ม "✓ เข้าพบแล้ว" ระบบจะบันทึกลงรายชื่อนักเรียนให้</p>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <h2 style="margin:0;flex:1">📋 คิวนัดของฉัน</h2>
+            <button class="btn btn-sm" style="background:var(--red)" onclick="deleteAllSlots()">🗑 ลบคิวทั้งหมด</button>
+          </div>
+          <p class="note" style="margin:10px 0">ตามภาคเรียนที่เลือกด้านบน — เมื่อพบผู้ปกครองแล้ว กดปุ่ม "✓ เข้าพบแล้ว" ระบบจะบันทึกลงรายชื่อนักเรียนให้</p>
           <div class="table-wrap">
             <div id="teacher-slot-list"><div class="empty">ยังไม่มีช่วงเวลา</div></div>
           </div>
@@ -418,7 +438,10 @@
         <!-- รายชื่อนักเรียน -->
         <div id="tsec-students" class="hidden">
         <div class="card">
-          <h2>👧 รายชื่อนักเรียนในห้อง <span class="badge badge-blue" id="student-count"></span></h2>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <h2 style="margin:0;flex:1">👧 รายชื่อนักเรียนในห้อง <span class="badge badge-blue" id="student-count"></span></h2>
+            <button class="btn btn-sm" style="background:var(--red)" onclick="deleteAllStudents()">🗑 ลบรายชื่อทั้งหมด</button>
+          </div>
 
           <div class="row" style="align-items:flex-end">
             <div class="field" style="flex:0 0 120px">
@@ -625,6 +648,7 @@ function makeLocalStore() {
     listenStudents(cb) { listeners.students.push(cb); cb(read(KEYS.students)); },
     async addSlots(ns) { const s = read(KEYS.slots); ns.forEach(x => s.push(x)); write(KEYS.slots, s); notify("slots"); },
     async deleteSlot(id) { write(KEYS.slots, read(KEYS.slots).filter(s => s.id !== id)); notify("slots"); },
+    async deleteSlots(ids) { const set = new Set(ids); write(KEYS.slots, read(KEYS.slots).filter(s => !set.has(s.id))); notify("slots"); },
     async book(id, booking) {
       const slots = read(KEYS.slots);
       const slot = slots.find(s => s.id === id);
@@ -658,7 +682,8 @@ function makeLocalStore() {
       st.push({ ...data, id: "st" + Date.now() + Math.random().toString(36).slice(2, 6) });
       write(KEYS.students, st); notify("students");
     },
-    async deleteStudent(id) { write(KEYS.students, read(KEYS.students).filter(s => s.id !== id)); notify("students"); }
+    async deleteStudent(id) { write(KEYS.students, read(KEYS.students).filter(s => s.id !== id)); notify("students"); },
+    async deleteStudents(ids) { const set = new Set(ids); write(KEYS.students, read(KEYS.students).filter(s => !set.has(s.id))); notify("students"); }
   };
 }
 
@@ -670,6 +695,14 @@ function makeFirebaseStore(fb) {
   const listenCol = (col, cb) => col.onSnapshot(snap => {
     const arr = []; snap.forEach(d => arr.push({ ...d.data(), id: d.id })); cb(arr);
   });
+  // ลบทีละชุด (Firestore จำกัด 500 รายการต่อ batch)
+  const batchDelete = async (col, ids) => {
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = db.batch();
+      ids.slice(i, i + 400).forEach(id => batch.delete(col.doc(id)));
+      await batch.commit();
+    }
+  };
   return {
     demo: false,
     listen(cb)         { listenCol(slots, cb); },
@@ -681,6 +714,7 @@ function makeFirebaseStore(fb) {
       await batch.commit();
     },
     async deleteSlot(id) { await slots.doc(id).delete(); },
+    async deleteSlots(ids) { await batchDelete(slots, ids); },
     async book(id, booking) {
       const ref = slots.doc(id);
       return db.runTransaction(async tx => {
@@ -712,7 +746,8 @@ function makeFirebaseStore(fb) {
     async updateRoom(id, patch) { await rooms.doc(id).update(patch); },
     async releaseRoom(id) { await rooms.doc(id).delete(); },
     async addStudent(data) { await students.add(data); },
-    async deleteStudent(id) { await students.doc(id).delete(); }
+    async deleteStudent(id) { await students.doc(id).delete(); },
+    async deleteStudents(ids) { await batchDelete(students, ids); }
   };
 }
 
@@ -766,10 +801,19 @@ function isAllowedTeacherEmail(email) {
          (cfg.EXTRA || []).some(x => x.toLowerCase() === e);
 }
 const roomId = (grade, room) => `${grade}_${room}`.replace(/[.\s/]/g, "");
+/* ช่วงเวลาออนไซต์ของห้องนั้น ๆ (ถ้าครูไม่ได้ตั้ง ใช้ค่าเริ่มต้นของโรงเรียน) */
+function roomOnsiteWindow(rm) {
+  const d = CONFIG.ONSITE_WINDOW || {};
+  return {
+    start: (rm && rm.onsiteStart) || d.start || "",
+    end:   (rm && rm.onsiteEnd)   || d.end   || ""
+  };
+}
 /* คิวนี้อยู่ในช่วงเวลาที่พบแบบออนไซต์ได้หรือไม่ (ต้องอยู่ในช่วงทั้งคิว) */
-function slotAllowsOnsite(s) {
-  const w = CONFIG.ONSITE_WINDOW;
-  if (!w || !w.start || !w.end) return true;
+function slotAllowsOnsite(s, rm) {
+  if (rm === undefined) rm = allRooms.find(r => r.grade === s.grade && r.room === s.room);
+  const w = roomOnsiteWindow(rm);
+  if (!w.start || !w.end) return true;
   return s.start >= w.start && s.end <= w.end;
 }
 const modeBadge = (m) => m === "onsite"
@@ -821,10 +865,12 @@ function renderParent() {
   }
   const rm = allRooms.find(r => r.grade === grade && r.room === room);
   if (rm) {
-    const w = CONFIG.ONSITE_WINDOW;
+    const w = roomOnsiteWindow(rm);
     info.textContent = `ครูประจำชั้น: ${rm.teacherName}` +
       (rm.onsiteLimit === -1 ? " · รับเฉพาะแบบออนไลน์"
-        : ` · พบที่โรงเรียนได้เฉพาะเวลา ${w.start} - ${w.end} น. นอกเวลานี้เลือกออนไลน์`);
+        : (w.start && w.end)
+          ? ` · พบที่โรงเรียนได้เฉพาะเวลา ${w.start} - ${w.end} น. นอกเวลานี้เลือกออนไลน์`
+          : "");
   }
 
   const avail = allSlots
@@ -873,13 +919,13 @@ function openBooking(id) {
   const noOnsite = !!rm && rm.onsiteLimit === -1;          // ครูไม่รับออนไซต์
   const limit = rm && rm.onsiteLimit > 0 ? rm.onsiteLimit : 0;
   const used = onsiteBookedCount(s.grade, s.room, s.term);
-  const outOfHours = !slotAllowsOnsite(s);                 // นอกช่วงเวลาที่พบที่โรงเรียนได้
+  const outOfHours = !slotAllowsOnsite(s, rm);             // นอกช่วงเวลาที่พบที่โรงเรียนได้
   const onsiteOff = noOnsite || outOfHours || (limit > 0 && used >= limit);
   const onsiteLabel = $("mode-onsite-label");
   const onsiteRadio = onsiteLabel.querySelector("input");
   onsiteLabel.classList.toggle("disabled", onsiteOff);
   onsiteRadio.disabled = onsiteOff;
-  const w = CONFIG.ONSITE_WINDOW;
+  const w = roomOnsiteWindow(rm);
   const place = rm && rm.onsitePlace ? rm.onsitePlace : "";
   $("onsite-note").textContent = noOnsite
     ? "ห้องนี้รับเฉพาะออนไลน์"
@@ -1194,7 +1240,9 @@ async function claimRoom() {
   try {
     await store.claimRoom(roomId(grade, room), {
       uid: currentUser.uid, grade, room, teacherName, onsiteLimit: limit,
-      onsitePlace: $("r-place").value.trim()
+      onsitePlace: $("r-place").value.trim(),
+      onsiteStart: $("r-on-start").value || "",
+      onsiteEnd: $("r-on-end").value || ""
     });
   } catch (e) {
     err.textContent = e.message === "ROOM_TAKEN"
@@ -1207,7 +1255,17 @@ async function claimRoom() {
 async function saveLimit() {
   if (!myRoom) return;
   const limit = limitFromControls($("edit-limit-mode"), $("edit-limit"));
-  await store.updateRoom(myRoom.id, { onsiteLimit: limit, onsitePlace: $("edit-place").value.trim() });
+  const st = $("edit-on-start").value || "", en = $("edit-on-end").value || "";
+  if (st && en && st >= en) {
+    alert("ช่วงเวลาออนไซต์ไม่ถูกต้อง — เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด");
+    return;
+  }
+  await store.updateRoom(myRoom.id, {
+    onsiteLimit: limit,
+    onsitePlace: $("edit-place").value.trim(),
+    onsiteStart: st,
+    onsiteEnd: en
+  });
 }
 
 async function changeRoom() {
@@ -1436,6 +1494,41 @@ async function deleteSlot(id) {
   await store.deleteSlot(id);
 }
 
+/* ลบคิวทั้งหมดของครูคนนี้ ในภาคเรียนที่กำลังดูอยู่ */
+async function deleteAllSlots() {
+  if (!currentUser) return;
+  const term = $("t-term").value;
+  const mine = allSlots.filter(s => s.uid === currentUser.uid && s.term === term);
+  if (!mine.length) { alert("ยังไม่มีคิวในภาคเรียนนี้"); return; }
+  const booked = mine.filter(s => s.booking).length;
+  let msg = `ยืนยันลบคิวทั้งหมดของภาคเรียน ${term} จำนวน ${mine.length} คิว?`;
+  if (booked) msg += `\n\n⚠️ ในจำนวนนี้มีผู้ปกครองจองไว้แล้ว ${booked} คิว การจองเหล่านั้นจะถูกลบไปด้วย`;
+  msg += "\n\nการลบนี้ย้อนกลับไม่ได้";
+  if (!confirm(msg)) return;
+  if (booked && !confirm(`ยืนยันอีกครั้ง: จะลบคิวที่ถูกจองแล้ว ${booked} คิวด้วย ใช่หรือไม่?`)) return;
+  try {
+    await store.deleteSlots(mine.map(s => s.id));
+    alert(`ลบคิวเรียบร้อย ${mine.length} คิว`);
+  } catch (e) {
+    alert("ลบไม่สำเร็จ: " + (e.code || e.message));
+  }
+}
+
+/* ลบรายชื่อนักเรียนทั้งหมดในห้องของครูคนนี้ */
+async function deleteAllStudents() {
+  if (!myRoom) return;
+  const list = allStudents.filter(s => s.grade === myRoom.grade && s.room === myRoom.room);
+  if (!list.length) { alert("ยังไม่มีรายชื่อนักเรียนในห้องนี้"); return; }
+  if (!confirm(`ยืนยันลบรายชื่อนักเรียนทั้งหมดในห้อง ${myRoom.grade}/${myRoom.room} จำนวน ${list.length} คน?\n\n` +
+               `คิวนัดที่ผู้ปกครองจองไว้แล้วจะยังอยู่ครบ ไม่ถูกลบไปด้วย\n\nการลบนี้ย้อนกลับไม่ได้`)) return;
+  try {
+    await store.deleteStudents(list.map(s => s.id));
+    alert(`ลบรายชื่อเรียบร้อย ${list.length} คน`);
+  } catch (e) {
+    alert("ลบไม่สำเร็จ: " + (e.code || e.message));
+  }
+}
+
 async function markMet(id) {
   await store.markMet(id);
 }
@@ -1547,19 +1640,21 @@ function renderTeacher() {
   // แถบข้อมูลห้อง
   $("my-room-title").textContent = `🏫 ห้องประจำชั้น ${myRoom.grade}/${myRoom.room}`;
   const usedOnsite = onsiteBookedCount(myRoom.grade, myRoom.room, $("t-term").value);
-  const w = CONFIG.ONSITE_WINDOW;
+  const w = roomOnsiteWindow(myRoom);
   $("my-room-sub").textContent = (myRoom.onsiteLimit === -1
     ? `${myRoom.teacherName} · รับเฉพาะออนไลน์`
     : `${myRoom.teacherName} · จองออนไซต์แล้ว ${usedOnsite}` +
       (myRoom.onsiteLimit > 0 ? `/${myRoom.onsiteLimit} คน` : " คน (ไม่จำกัดจำนวน)") +
-      ` · ออนไซต์เฉพาะ ${w.start}-${w.end} น.`)
+      (w.start && w.end ? ` · ออนไซต์เฉพาะ ${w.start}-${w.end} น.` : " · ออนไซต์ได้ทุกช่วงเวลา"))
     + (myRoom.onsitePlace ? ` · ${myRoom.onsitePlace}` : "");
   // อัพเดตตัวควบคุมออนไซต์ตามค่าที่บันทึกไว้ (เว้นตอนกำลังพิมพ์)
-  const editing = [$("edit-limit"), $("edit-limit-mode"), $("edit-place")].includes(document.activeElement);
-  if (!editing) {
+  const editIds = ["edit-limit", "edit-limit-mode", "edit-place", "edit-on-start", "edit-on-end"];
+  if (!editIds.some(id => $(id) === document.activeElement)) {
     $("edit-limit-mode").value = myRoom.onsiteLimit === -1 ? "none" : myRoom.onsiteLimit > 0 ? "limited" : "unlimited";
     if (myRoom.onsiteLimit > 0) $("edit-limit").value = myRoom.onsiteLimit;
     $("edit-place").value = myRoom.onsitePlace || "";
+    $("edit-on-start").value = w.start;
+    $("edit-on-end").value = w.end;
     onLimitModeChange("edit");
   }
 
