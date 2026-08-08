@@ -328,6 +328,10 @@
             <input type="number" id="r-limit" min="1" value="20">
           </div>
         </div>
+        <div class="field">
+          <label for="r-place">สถานที่นัดพบออนไซต์ (แสดงให้ผู้ปกครองเห็น)</label>
+          <input type="text" id="r-place" placeholder="เช่น ห้องเรียน ป.5/3 อาคาร 2 ชั้น 3">
+        </div>
         <button class="btn" onclick="claimRoom()">✅ ยืนยันห้องประจำชั้น</button>
         <div id="room-error" class="error-msg hidden"></div>
       </div>
@@ -347,6 +351,10 @@
               <option value="none">ไม่รับ (ออนไลน์เท่านั้น)</option>
             </select>
             <input type="number" id="edit-limit" min="1" style="width:70px;padding:6px 8px" class="hidden">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px">
+            <label style="margin:0;font-size:.8rem;white-space:nowrap">สถานที่:</label>
+            <input type="text" id="edit-place" placeholder="เช่น ห้องเรียน ป.5/3 อาคาร 2" style="flex:1;padding:6px 8px">
             <button class="btn btn-sm" onclick="saveLimit()">บันทึก</button>
           </div>
           <button class="btn btn-outline btn-sm" onclick="changeRoom()">เปลี่ยนห้อง</button>
@@ -572,6 +580,10 @@ const CONFIG = {
     "ม.1": 3, "ม.2": 2, "ม.3": 3, "ม.4": 1, "ม.5": 1, "ม.6": 2
   },
 
+  // ช่วงเวลาที่อนุญาตให้พบแบบออนไซต์ (นอกช่วงนี้จะเลือกได้เฉพาะออนไลน์)
+  // คิวต้องอยู่ในช่วงนี้ทั้งคิว เช่น 16:00-16:15 ได้ แต่ 15:45-16:00 และ 18:30-18:45 ไม่ได้
+  ONSITE_WINDOW: { start: "16:00", end: "18:30" },
+
   // จำกัดอีเมลครู: อนุญาตเฉพาะอีเมลที่ลงท้ายด้วยโดเมนนี้ (เว้นว่าง "" = อนุญาตทุกเมล)
   // EXTRA = รายการอีเมลพิเศษที่อนุญาตเพิ่ม (เช่น ผู้ดูแลระบบ)
   TEACHER_EMAIL: {
@@ -754,6 +766,12 @@ function isAllowedTeacherEmail(email) {
          (cfg.EXTRA || []).some(x => x.toLowerCase() === e);
 }
 const roomId = (grade, room) => `${grade}_${room}`.replace(/[.\s/]/g, "");
+/* คิวนี้อยู่ในช่วงเวลาที่พบแบบออนไซต์ได้หรือไม่ (ต้องอยู่ในช่วงทั้งคิว) */
+function slotAllowsOnsite(s) {
+  const w = CONFIG.ONSITE_WINDOW;
+  if (!w || !w.start || !w.end) return true;
+  return s.start >= w.start && s.end <= w.end;
+}
 const modeBadge = (m) => m === "onsite"
   ? '<span class="badge badge-blue">🏫 ออนไซต์</span>'
   : '<span class="badge badge-purple">💻 ออนไลน์</span>';
@@ -802,7 +820,12 @@ function renderParent() {
     return;
   }
   const rm = allRooms.find(r => r.grade === grade && r.room === room);
-  if (rm) info.textContent = `ครูประจำชั้น: ${rm.teacherName}`;
+  if (rm) {
+    const w = CONFIG.ONSITE_WINDOW;
+    info.textContent = `ครูประจำชั้น: ${rm.teacherName}` +
+      (rm.onsiteLimit === -1 ? " · รับเฉพาะแบบออนไลน์"
+        : ` · พบที่โรงเรียนได้เฉพาะเวลา ${w.start} - ${w.end} น. นอกเวลานี้เลือกออนไลน์`);
+  }
 
   const avail = allSlots
     .filter(s => s.term === term && s.grade === grade && s.room === room && !s.booking)
@@ -850,14 +873,19 @@ function openBooking(id) {
   const noOnsite = !!rm && rm.onsiteLimit === -1;          // ครูไม่รับออนไซต์
   const limit = rm && rm.onsiteLimit > 0 ? rm.onsiteLimit : 0;
   const used = onsiteBookedCount(s.grade, s.room, s.term);
-  const onsiteOff = noOnsite || (limit > 0 && used >= limit);
+  const outOfHours = !slotAllowsOnsite(s);                 // นอกช่วงเวลาที่พบที่โรงเรียนได้
+  const onsiteOff = noOnsite || outOfHours || (limit > 0 && used >= limit);
   const onsiteLabel = $("mode-onsite-label");
   const onsiteRadio = onsiteLabel.querySelector("input");
   onsiteLabel.classList.toggle("disabled", onsiteOff);
   onsiteRadio.disabled = onsiteOff;
+  const w = CONFIG.ONSITE_WINDOW;
+  const place = rm && rm.onsitePlace ? rm.onsitePlace : "";
   $("onsite-note").textContent = noOnsite
     ? "ห้องนี้รับเฉพาะออนไลน์"
-    : onsiteOff ? "เต็มแล้ว — กรุณาเลือกออนไลน์" : "พบที่โรงเรียน";
+    : outOfHours ? `พบที่โรงเรียนได้เฉพาะเวลา ${w.start} - ${w.end} น.`
+    : onsiteOff ? "เต็มแล้ว — กรุณาเลือกออนไลน์"
+    : (place || "พบที่โรงเรียน");
   (onsiteOff ? document.querySelector('input[name="b-mode"][value="online"]') : onsiteRadio).checked = true;
 
   // รายชื่อนักเรียนของห้องนี้ (ถ้าครูเพิ่มไว้)
@@ -924,9 +952,13 @@ async function confirmBooking() {
   }
 
   $("confirm-btn").disabled = true;
+  // เก็บสถานที่ไว้กับการจอง เผื่อครูแก้สถานที่ภายหลัง
+  const bkSlot = allSlots.find(x => x.id === bookingSlotId);
+  const bkRoom = bkSlot && allRooms.find(r => r.grade === bkSlot.grade && r.room === bkSlot.room);
   const booking = {
     mode, sTitle, sName, studentId,
     pTitle: $("b-ptitle").value, pName: pname,
+    place: mode === "onsite" && bkRoom && bkRoom.onsitePlace ? bkRoom.onsitePlace : "",
     met: false,
     at: new Date().toISOString()
   };
@@ -936,6 +968,7 @@ async function confirmBooking() {
     $("book-success-area").classList.remove("hidden");
     $("success-detail").innerHTML =
       `<b>รูปแบบ:</b> ${mode === "onsite" ? "🏫 ออนไซต์ (พบที่โรงเรียน)" : "💻 ออนไลน์"}<br>` +
+      (booking.place ? `<b>สถานที่:</b> ${esc(booking.place)}<br>` : "") +
       `<b>นักเรียน:</b> ${esc(booking.sTitle)}${esc(booking.sName)}<br>` +
       `<b>ผู้ปกครอง:</b> ${esc(booking.pTitle === "อื่น ๆ" ? "" : booking.pTitle)}${esc(booking.pName)}<br>` +
       `<b>ห้อง:</b> ${esc(slot.grade)}/${esc(slot.room)} · ภาคเรียนที่ ${esc(slot.term)}<br>` +
@@ -1160,7 +1193,8 @@ async function claimRoom() {
   if (!teacherName) { err.textContent = "กรุณากรอกชื่อครูประจำชั้น"; err.classList.remove("hidden"); return; }
   try {
     await store.claimRoom(roomId(grade, room), {
-      uid: currentUser.uid, grade, room, teacherName, onsiteLimit: limit
+      uid: currentUser.uid, grade, room, teacherName, onsiteLimit: limit,
+      onsitePlace: $("r-place").value.trim()
     });
   } catch (e) {
     err.textContent = e.message === "ROOM_TAKEN"
@@ -1173,7 +1207,7 @@ async function claimRoom() {
 async function saveLimit() {
   if (!myRoom) return;
   const limit = limitFromControls($("edit-limit-mode"), $("edit-limit"));
-  await store.updateRoom(myRoom.id, { onsiteLimit: limit });
+  await store.updateRoom(myRoom.id, { onsiteLimit: limit, onsitePlace: $("edit-place").value.trim() });
 }
 
 async function changeRoom() {
@@ -1513,14 +1547,19 @@ function renderTeacher() {
   // แถบข้อมูลห้อง
   $("my-room-title").textContent = `🏫 ห้องประจำชั้น ${myRoom.grade}/${myRoom.room}`;
   const usedOnsite = onsiteBookedCount(myRoom.grade, myRoom.room, $("t-term").value);
-  $("my-room-sub").textContent = myRoom.onsiteLimit === -1
+  const w = CONFIG.ONSITE_WINDOW;
+  $("my-room-sub").textContent = (myRoom.onsiteLimit === -1
     ? `${myRoom.teacherName} · รับเฉพาะออนไลน์`
     : `${myRoom.teacherName} · จองออนไซต์แล้ว ${usedOnsite}` +
-      (myRoom.onsiteLimit > 0 ? `/${myRoom.onsiteLimit} คน` : " คน (ไม่จำกัดจำนวน)");
+      (myRoom.onsiteLimit > 0 ? `/${myRoom.onsiteLimit} คน` : " คน (ไม่จำกัดจำนวน)") +
+      ` · ออนไซต์เฉพาะ ${w.start}-${w.end} น.`)
+    + (myRoom.onsitePlace ? ` · ${myRoom.onsitePlace}` : "");
   // อัพเดตตัวควบคุมออนไซต์ตามค่าที่บันทึกไว้ (เว้นตอนกำลังพิมพ์)
-  if (document.activeElement !== $("edit-limit") && document.activeElement !== $("edit-limit-mode")) {
+  const editing = [$("edit-limit"), $("edit-limit-mode"), $("edit-place")].includes(document.activeElement);
+  if (!editing) {
     $("edit-limit-mode").value = myRoom.onsiteLimit === -1 ? "none" : myRoom.onsiteLimit > 0 ? "limited" : "unlimited";
     if (myRoom.onsiteLimit > 0) $("edit-limit").value = myRoom.onsiteLimit;
+    $("edit-place").value = myRoom.onsitePlace || "";
     onLimitModeChange("edit");
   }
 
