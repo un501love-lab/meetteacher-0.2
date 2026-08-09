@@ -378,11 +378,17 @@
             <span style="font-size:.8rem">–</span>
             <input type="time" id="edit-on-end" style="width:auto;padding:6px 8px">
           </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="margin:0;font-size:.8rem;white-space:nowrap">วันที่ออนไซต์:</label>
+            <input type="date" id="edit-on-date" style="width:auto;padding:6px 8px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOnsiteDate('edit')">➕ เพิ่ม</button>
+          </div>
           <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px">
             <label style="margin:0;font-size:.8rem;white-space:nowrap">สถานที่:</label>
             <input type="text" id="edit-place" placeholder="เช่น ห้องเรียน ป.5/3 อาคาร 2" style="flex:1;padding:6px 8px">
             <button class="btn btn-sm" onclick="saveLimit()">บันทึก</button>
           </div>
+          <div id="edit-on-dates" style="flex-basis:100%"></div>
           <button class="btn btn-outline btn-sm" onclick="openRoomEdit()">✏️ แก้ไขชั้น/ห้อง/ชื่อครู</button>
         </div>
 
@@ -1282,32 +1288,34 @@ function limitFromControls(modeSel, numInput) {
 
 /* โหมดแก้ไขข้อมูลห้อง (ชั้น/ห้อง/ชื่อครู/ค่าต่าง ๆ) */
 let roomEditMode = false;
-let onsiteDatesDraft = [];   // วันที่ออนไซต์ที่กำลังแก้อยู่ในฟอร์ม
+let onsiteDatesDraft = [];    // วันที่ออนไซต์ที่กำลังแก้อยู่
+let onsiteDatesDirty = false; // แก้แล้วแต่ยังไม่กดบันทึก (กันข้อมูลใหม่มาทับ)
 
 function renderOnsiteDates() {
-  const box = $("r-on-dates");
-  if (!onsiteDatesDraft.length) {
-    box.innerHTML = '<span class="note">ยังไม่ได้ระบุวันที่ — ผู้ปกครองจะพบแบบออนไซต์ได้ทุกวันที่คุณเปิดคิว (ตามช่วงเวลาด้านบน)</span>';
-    return;
-  }
-  box.innerHTML = onsiteDatesDraft.map(d =>
-    `<span class="badge badge-blue" style="margin:0 6px 6px 0;padding:5px 10px">${thaiDate(d)}
-       <button type="button" onclick="removeOnsiteDate('${d}')"
-         style="background:none;border:none;cursor:pointer;color:inherit;font-size:.9rem;padding:0 0 0 4px"
-         aria-label="ลบวันที่ ${thaiDate(d)}">✕</button></span>`).join("");
+  const html = onsiteDatesDraft.length
+    ? onsiteDatesDraft.map(d =>
+        `<span class="badge badge-blue" style="margin:0 6px 6px 0;padding:5px 10px">${thaiDate(d)}
+           <button type="button" onclick="removeOnsiteDate('${d}')"
+             style="background:none;border:none;cursor:pointer;color:inherit;font-size:.9rem;padding:0 0 0 4px"
+             aria-label="ลบวันที่ ${thaiDate(d)}">✕</button></span>`).join("")
+    : '<span class="note">ไม่ระบุวันที่ = ออนไซต์ได้ทุกวันที่เปิดคิว (ตามช่วงเวลาที่ตั้งไว้)</span>';
+  ["r-on-dates", "edit-on-dates"].forEach(id => { const el = $(id); if (el) el.innerHTML = html; });
 }
-function addOnsiteDate() {
-  const v = $("r-on-date").value;
+function addOnsiteDate(which) {
+  const input = $(which === "edit" ? "edit-on-date" : "r-on-date");
+  const v = input.value;
   if (!v) return;
   if (!onsiteDatesDraft.includes(v)) {
     onsiteDatesDraft.push(v);
     onsiteDatesDraft.sort();
   }
-  $("r-on-date").value = "";
+  input.value = "";
+  onsiteDatesDirty = true;
   renderOnsiteDates();
 }
 function removeOnsiteDate(d) {
   onsiteDatesDraft = onsiteDatesDraft.filter(x => x !== d);
+  onsiteDatesDirty = true;
   renderOnsiteDates();
 }
 
@@ -1326,6 +1334,7 @@ function openRoomEdit() {
   $("r-on-end").value = w.end;
   $("r-place").value = myRoom.onsitePlace || "";
   onsiteDatesDraft = [...roomOnsiteDates(myRoom)];
+  onsiteDatesDirty = false;
   renderOnsiteDates();
   $("room-setup-title").textContent = "✏️ แก้ไขข้อมูลห้องประจำชั้น";
   $("room-setup-note").textContent = "แก้ชื่อครู ระดับชั้น หรือห้องได้ — ถ้าเปลี่ยนชั้น/ห้อง ระบบจะย้ายคิวนัดและรายชื่อนักเรียนตามไปให้ทั้งหมด";
@@ -1337,8 +1346,7 @@ function openRoomEdit() {
 
 function cancelRoomEdit() {
   roomEditMode = false;
-  onsiteDatesDraft = [];
-  renderOnsiteDates();
+  onsiteDatesDirty = false;
   $("room-setup-title").textContent = "🏫 เลือกห้องประจำชั้นของคุณ";
   $("room-setup-note").textContent = "เลือกครั้งเดียว ระบบจะผูกห้องนี้กับบัญชีของคุณ (1 ห้องมีครูประจำชั้นได้ 1 ท่าน เพื่อไม่ให้สร้างเวลานัดซ้ำซ้อนกัน)";
   $("room-submit").textContent = "✅ ยืนยันห้องประจำชั้น";
@@ -1415,8 +1423,10 @@ async function saveLimit() {
     onsiteLimit: limit,
     onsitePlace: $("edit-place").value.trim(),
     onsiteStart: st,
-    onsiteEnd: en
+    onsiteEnd: en,
+    onsiteDates: [...onsiteDatesDraft]
   });
+  onsiteDatesDirty = false;
 }
 
 /* ============================================================
@@ -1805,6 +1815,11 @@ function renderTeacher() {
     $("edit-on-start").value = w.start;
     $("edit-on-end").value = w.end;
     onLimitModeChange("edit");
+  }
+  // รายการวันที่ออนไซต์ (ไม่ทับถ้าครูกำลังแก้อยู่แต่ยังไม่กดบันทึก)
+  if (!onsiteDatesDirty && !roomEditMode) {
+    onsiteDatesDraft = [...roomOnsiteDates(myRoom)];
+    renderOnsiteDates();
   }
 
   renderDashboard();
