@@ -340,6 +340,14 @@
         </div>
         <p class="note" style="margin:-4px 0 12px">คิวที่อยู่นอกช่วงเวลานี้ ผู้ปกครองจะเลือกได้เฉพาะออนไลน์</p>
         <div class="field">
+          <label for="r-on-date">วันที่เปิดให้พบแบบออนไซต์ <span style="font-weight:400;color:var(--gray-500)">— ไม่ระบุ = ได้ทุกวันที่เปิดคิว</span></label>
+          <div class="row" style="align-items:center;gap:8px">
+            <input type="date" id="r-on-date" style="flex:1;min-width:150px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOnsiteDate()">➕ เพิ่มวันที่</button>
+          </div>
+          <div id="r-on-dates" style="margin-top:8px"></div>
+        </div>
+        <div class="field">
           <label for="r-place">สถานที่นัดพบออนไซต์ (แสดงให้ผู้ปกครองเห็น)</label>
           <input type="text" id="r-place" placeholder="เช่น ห้องเรียน ป.5/3 อาคาร 2 ชั้น 3">
         </div>
@@ -778,6 +786,10 @@ const $ = (id) => document.getElementById(id);
 const THAI_DAYS = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
 const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 
+function thaiDateShort(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${THAI_MONTHS[m - 1]}`;
+}
 function thaiDate(iso) {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
@@ -829,12 +841,25 @@ function roomOnsiteWindow(rm) {
     end:   (rm && rm.onsiteEnd)   || d.end   || ""
   };
 }
+/* วันที่ครูเปิดให้พบแบบออนไซต์ (ว่าง = ทุกวันที่มีคิว) */
+function roomOnsiteDates(rm) {
+  return rm && Array.isArray(rm.onsiteDates) ? rm.onsiteDates : [];
+}
+/* คิวนี้อยู่ในวันที่เปิดออนไซต์หรือไม่ */
+function slotDateAllowsOnsite(s, rm) {
+  const d = roomOnsiteDates(rm);
+  return !d.length || d.includes(s.date);
+}
 /* คิวนี้อยู่ในช่วงเวลาที่พบแบบออนไซต์ได้หรือไม่ (ต้องอยู่ในช่วงทั้งคิว) */
-function slotAllowsOnsite(s, rm) {
-  if (rm === undefined) rm = allRooms.find(r => r.grade === s.grade && r.room === s.room);
+function slotTimeAllowsOnsite(s, rm) {
   const w = roomOnsiteWindow(rm);
   if (!w.start || !w.end) return true;
   return s.start >= w.start && s.end <= w.end;
+}
+/* คิวนี้พบแบบออนไซต์ได้หรือไม่ (ทั้งวันที่และเวลา) */
+function slotAllowsOnsite(s, rm) {
+  if (rm === undefined) rm = allRooms.find(r => r.grade === s.grade && r.room === s.room);
+  return slotDateAllowsOnsite(s, rm) && slotTimeAllowsOnsite(s, rm);
 }
 const modeBadge = (m) => m === "onsite"
   ? '<span class="badge badge-blue">🏫 ออนไซต์</span>'
@@ -886,10 +911,12 @@ function renderParent() {
   const rm = allRooms.find(r => r.grade === grade && r.room === room);
   if (rm) {
     const w = roomOnsiteWindow(rm);
+    const ds = roomOnsiteDates(rm);
     info.textContent = `ครูประจำชั้น: ${rm.teacherName}` +
       (rm.onsiteLimit === -1 ? " · รับเฉพาะแบบออนไลน์"
         : (w.start && w.end)
-          ? ` · พบที่โรงเรียนได้เฉพาะเวลา ${w.start} - ${w.end} น. นอกเวลานี้เลือกออนไลน์`
+          ? ` · พบที่โรงเรียนได้` + (ds.length ? `เฉพาะวันที่ ${ds.map(thaiDateShort).join(", ")} ` : "") +
+            `เวลา ${w.start} - ${w.end} น. นอกจากนี้เลือกออนไลน์`
           : "");
   }
 
@@ -939,16 +966,19 @@ function openBooking(id) {
   const noOnsite = !!rm && rm.onsiteLimit === -1;          // ครูไม่รับออนไซต์
   const limit = rm && rm.onsiteLimit > 0 ? rm.onsiteLimit : 0;
   const used = onsiteBookedCount(s.grade, s.room, s.term);
-  const outOfHours = !slotAllowsOnsite(s, rm);             // นอกช่วงเวลาที่พบที่โรงเรียนได้
-  const onsiteOff = noOnsite || outOfHours || (limit > 0 && used >= limit);
+  const wrongDay = !slotDateAllowsOnsite(s, rm);           // วันนี้ครูไม่เปิดออนไซต์
+  const outOfHours = !slotTimeAllowsOnsite(s, rm);         // นอกช่วงเวลาที่พบที่โรงเรียนได้
+  const onsiteOff = noOnsite || wrongDay || outOfHours || (limit > 0 && used >= limit);
   const onsiteLabel = $("mode-onsite-label");
   const onsiteRadio = onsiteLabel.querySelector("input");
   onsiteLabel.classList.toggle("disabled", onsiteOff);
   onsiteRadio.disabled = onsiteOff;
   const w = roomOnsiteWindow(rm);
   const place = rm && rm.onsitePlace ? rm.onsitePlace : "";
+  const okDates = roomOnsiteDates(rm);
   $("onsite-note").textContent = noOnsite
     ? "ห้องนี้รับเฉพาะออนไลน์"
+    : wrongDay ? `วันนี้ไม่เปิดพบที่โรงเรียน (เปิดเฉพาะ ${okDates.map(thaiDateShort).join(", ")})`
     : outOfHours ? `พบที่โรงเรียนได้เฉพาะเวลา ${w.start} - ${w.end} น.`
     : onsiteOff ? "เต็มแล้ว — กรุณาเลือกออนไลน์"
     : (place || "พบที่โรงเรียน");
@@ -1252,6 +1282,34 @@ function limitFromControls(modeSel, numInput) {
 
 /* โหมดแก้ไขข้อมูลห้อง (ชั้น/ห้อง/ชื่อครู/ค่าต่าง ๆ) */
 let roomEditMode = false;
+let onsiteDatesDraft = [];   // วันที่ออนไซต์ที่กำลังแก้อยู่ในฟอร์ม
+
+function renderOnsiteDates() {
+  const box = $("r-on-dates");
+  if (!onsiteDatesDraft.length) {
+    box.innerHTML = '<span class="note">ยังไม่ได้ระบุวันที่ — ผู้ปกครองจะพบแบบออนไซต์ได้ทุกวันที่คุณเปิดคิว (ตามช่วงเวลาด้านบน)</span>';
+    return;
+  }
+  box.innerHTML = onsiteDatesDraft.map(d =>
+    `<span class="badge badge-blue" style="margin:0 6px 6px 0;padding:5px 10px">${thaiDate(d)}
+       <button type="button" onclick="removeOnsiteDate('${d}')"
+         style="background:none;border:none;cursor:pointer;color:inherit;font-size:.9rem;padding:0 0 0 4px"
+         aria-label="ลบวันที่ ${thaiDate(d)}">✕</button></span>`).join("");
+}
+function addOnsiteDate() {
+  const v = $("r-on-date").value;
+  if (!v) return;
+  if (!onsiteDatesDraft.includes(v)) {
+    onsiteDatesDraft.push(v);
+    onsiteDatesDraft.sort();
+  }
+  $("r-on-date").value = "";
+  renderOnsiteDates();
+}
+function removeOnsiteDate(d) {
+  onsiteDatesDraft = onsiteDatesDraft.filter(x => x !== d);
+  renderOnsiteDates();
+}
 
 function openRoomEdit() {
   if (!myRoom) return;
@@ -1267,6 +1325,8 @@ function openRoomEdit() {
   $("r-on-start").value = w.start;
   $("r-on-end").value = w.end;
   $("r-place").value = myRoom.onsitePlace || "";
+  onsiteDatesDraft = [...roomOnsiteDates(myRoom)];
+  renderOnsiteDates();
   $("room-setup-title").textContent = "✏️ แก้ไขข้อมูลห้องประจำชั้น";
   $("room-setup-note").textContent = "แก้ชื่อครู ระดับชั้น หรือห้องได้ — ถ้าเปลี่ยนชั้น/ห้อง ระบบจะย้ายคิวนัดและรายชื่อนักเรียนตามไปให้ทั้งหมด";
   $("room-submit").textContent = "💾 บันทึกการแก้ไข";
@@ -1277,6 +1337,8 @@ function openRoomEdit() {
 
 function cancelRoomEdit() {
   roomEditMode = false;
+  onsiteDatesDraft = [];
+  renderOnsiteDates();
   $("room-setup-title").textContent = "🏫 เลือกห้องประจำชั้นของคุณ";
   $("room-setup-note").textContent = "เลือกครั้งเดียว ระบบจะผูกห้องนี้กับบัญชีของคุณ (1 ห้องมีครูประจำชั้นได้ 1 ท่าน เพื่อไม่ให้สร้างเวลานัดซ้ำซ้อนกัน)";
   $("room-submit").textContent = "✅ ยืนยันห้องประจำชั้น";
@@ -1299,7 +1361,8 @@ async function claimRoom() {
   }
   const data = {
     uid: currentUser.uid, grade, room, teacherName, onsiteLimit: limit,
-    onsitePlace: $("r-place").value.trim(), onsiteStart: st, onsiteEnd: en
+    onsitePlace: $("r-place").value.trim(), onsiteStart: st, onsiteEnd: en,
+    onsiteDates: [...onsiteDatesDraft]
   };
   const btn = $("room-submit");
   btn.disabled = true;
@@ -1729,6 +1792,9 @@ function renderTeacher() {
     : `${myRoom.teacherName} · จองออนไซต์แล้ว ${usedOnsite}` +
       (myRoom.onsiteLimit > 0 ? `/${myRoom.onsiteLimit} คน` : " คน (ไม่จำกัดจำนวน)") +
       (w.start && w.end ? ` · ออนไซต์เฉพาะ ${w.start}-${w.end} น.` : " · ออนไซต์ได้ทุกช่วงเวลา"))
+    + (roomOnsiteDates(myRoom).length
+        ? ` · เฉพาะวันที่ ${roomOnsiteDates(myRoom).map(thaiDateShort).join(", ")}`
+        : " · ทุกวันที่เปิดคิว")
     + (myRoom.onsitePlace ? ` · ${myRoom.onsitePlace}` : "");
   // อัพเดตตัวควบคุมออนไซต์ตามค่าที่บันทึกไว้ (เว้นตอนกำลังพิมพ์)
   const editIds = ["edit-limit", "edit-limit-mode", "edit-place", "edit-on-start", "edit-on-end"];
@@ -1851,6 +1917,7 @@ function init() {
 
   const tm = new Date(Date.now() + 86400000);
   $("t-date").value = tm.toISOString().slice(0, 10);
+  renderOnsiteDates();
 
   if (!store.demo) {
     firebase.auth().onAuthStateChanged(u => {
