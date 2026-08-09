@@ -658,9 +658,28 @@ function makeLocalStore() {
   });
   return {
     demo: true,
-    listen(cb)         { listeners.slots.push(cb);    cb(read(KEYS.slots)); },
     listenRooms(cb)    { listeners.rooms.push(cb);    cb(read(KEYS.rooms)); },
-    listenStudents(cb) { listeners.students.push(cb); cb(read(KEYS.students)); },
+    // โหลดเฉพาะข้อมูลที่ต้องใช้ (ประหยัดโควตาอ่านข้อมูล)
+    listenSlotsForRoom(term, grade, room, cb) {
+      const f = all => cb(all.filter(s => s.grade === grade && s.room === room));
+      listeners.slots.push(f); f(read(KEYS.slots));
+      return () => { listeners.slots = listeners.slots.filter(x => x !== f); };
+    },
+    listenSlotsForTeacher(uid, cb) {
+      const f = all => cb(all.filter(s => s.uid === uid));
+      listeners.slots.push(f); f(read(KEYS.slots));
+      return () => { listeners.slots = listeners.slots.filter(x => x !== f); };
+    },
+    listenStudentsForRoom(grade, room, cb) {
+      const f = all => cb(all.filter(s => s.grade === grade && s.room === room));
+      listeners.students.push(f); f(read(KEYS.students));
+      return () => { listeners.students = listeners.students.filter(x => x !== f); };
+    },
+    listenStudentsForTeacher(uid, cb) {
+      const f = all => cb(all.filter(s => s.uid === uid));
+      listeners.students.push(f); f(read(KEYS.students));
+      return () => { listeners.students = listeners.students.filter(x => x !== f); };
+    },
     async addSlots(ns) { const s = read(KEYS.slots); ns.forEach(x => s.push(x)); write(KEYS.slots, s); notify("slots"); },
     async deleteSlot(id) { write(KEYS.slots, read(KEYS.slots).filter(s => s.id !== id)); notify("slots"); },
     async deleteSlots(ids) { const set = new Set(ids); write(KEYS.slots, read(KEYS.slots).filter(s => !set.has(s.id))); notify("slots"); },
@@ -737,9 +756,20 @@ function makeFirebaseStore(fb) {
   };
   return {
     demo: false,
-    listen(cb)         { listenCol(slots, cb); },
     listenRooms(cb)    { listenCol(rooms, cb); },
-    listenStudents(cb) { listenCol(students, cb); },
+    // โหลดเฉพาะข้อมูลที่ต้องใช้ (ประหยัดโควตาอ่านข้อมูลของ Firebase)
+    listenSlotsForRoom(term, grade, room, cb) {
+      return listenCol(slots.where("grade", "==", grade).where("room", "==", room), cb);
+    },
+    listenSlotsForTeacher(uid, cb) {
+      return listenCol(slots.where("uid", "==", uid), cb);
+    },
+    listenStudentsForRoom(grade, room, cb) {
+      return listenCol(students.where("grade", "==", grade).where("room", "==", room), cb);
+    },
+    listenStudentsForTeacher(uid, cb) {
+      return listenCol(students.where("uid", "==", uid), cb);
+    },
     async addSlots(ns) {
       const batch = db.batch();
       ns.forEach(s => { const { id, ...data } = s; batch.set(slots.doc(id), data); });
@@ -875,6 +905,44 @@ const modeBadge = (m) => m === "onsite"
    สถานะรวม
    ============================================================ */
 let allSlots = [], allRooms = [], allStudents = [];
+/* แยกแหล่งข้อมูล 2 ทาง: ห้องที่ผู้ปกครองเลือก + ห้องของครูที่ล็อกอิน แล้วรวมกัน */
+let parentSlots = [], teacherSlots = [], parentStudents = [], teacherStudents = [];
+let unsubParentSlots = null, unsubParentStudents = null;
+let unsubTeacherSlots = null, unsubTeacherStudents = null;
+
+function mergeData() {
+  const sm = new Map();
+  parentSlots.forEach(s => sm.set(s.id, s));
+  teacherSlots.forEach(s => sm.set(s.id, s));
+  allSlots = [...sm.values()];
+  const st = new Map();
+  parentStudents.forEach(s => st.set(s.id, s));
+  teacherStudents.forEach(s => st.set(s.id, s));
+  allStudents = [...st.values()];
+  renderParent();
+  renderTeacher();
+}
+
+/* ผู้ปกครองเลือกห้องไหน ก็โหลดเฉพาะห้องนั้น */
+function subscribeParentRoom() {
+  if (unsubParentSlots) { unsubParentSlots(); unsubParentSlots = null; }
+  if (unsubParentStudents) { unsubParentStudents(); unsubParentStudents = null; }
+  parentSlots = []; parentStudents = [];
+  const term = $("p-term").value, grade = $("p-grade").value, room = $("p-room").value;
+  if (!grade || !room) { mergeData(); return; }
+  unsubParentSlots = store.listenSlotsForRoom(term, grade, room, arr => { parentSlots = arr; mergeData(); });
+  unsubParentStudents = store.listenStudentsForRoom(grade, room, arr => { parentStudents = arr; mergeData(); });
+}
+
+/* ครูที่ล็อกอิน โหลดเฉพาะข้อมูลของตัวเอง */
+function subscribeTeacher() {
+  if (unsubTeacherSlots) { unsubTeacherSlots(); unsubTeacherSlots = null; }
+  if (unsubTeacherStudents) { unsubTeacherStudents(); unsubTeacherStudents = null; }
+  teacherSlots = []; teacherStudents = [];
+  if (!currentUser) { mergeData(); return; }
+  unsubTeacherSlots = store.listenSlotsForTeacher(currentUser.uid, arr => { teacherSlots = arr; mergeData(); });
+  unsubTeacherStudents = store.listenStudentsForTeacher(currentUser.uid, arr => { teacherStudents = arr; mergeData(); });
+}
 let bookingSlotId = null;
 let currentUser = null;   // ครูที่ล็อกอิน
 let myRoom = null;        // ห้องประจำชั้นของครูคนนี้
@@ -1266,6 +1334,7 @@ function onAuthChanged() {
     else { img.style.display = "none"; }
     if (!$("r-teacher").value.trim()) $("r-teacher").value = currentUser.name || "";
   }
+  subscribeTeacher();
   renderTeacher();
 }
 
@@ -1931,7 +2000,7 @@ function init() {
   $("p-grade").addEventListener("change", fillParentRooms);
   $("r-grade").addEventListener("change", fillSetupRooms);
 
-  ["p-term", "p-grade", "p-room"].forEach(id => $(id).addEventListener("change", renderParent));
+  ["p-term", "p-grade", "p-room"].forEach(id => $(id).addEventListener("change", subscribeParentRoom));
   $("t-term").addEventListener("change", renderTeacher);
   $("s-name").addEventListener("keydown", e => { if (e.key === "Enter") addStudent(); });
   ["au-name", "au-email", "au-pass"].forEach(id =>
@@ -1982,9 +2051,8 @@ function init() {
     }
   }
 
-  store.listen(slots => { allSlots = slots; renderParent(); renderTeacher(); });
   store.listenRooms(rooms => { allRooms = rooms; renderParent(); renderTeacher(); });
-  store.listenStudents(st => { allStudents = st; renderTeacher(); });
+  subscribeParentRoom();
 }
 
 if (CONFIG.FIREBASE) {
