@@ -1318,6 +1318,11 @@ function removeOnsiteDate(d) {
   onsiteDatesDirty = true;
   renderOnsiteDates();
 }
+/* ถ้าครูเลือกวันไว้ในช่องแต่ยังไม่ได้กด "เพิ่ม" ให้นับรวมตอนกดบันทึกด้วย */
+function commitPendingOnsiteDate(which) {
+  const input = $(which === "edit" ? "edit-on-date" : "r-on-date");
+  if (input && input.value) addOnsiteDate(which);
+}
 
 function openRoomEdit() {
   if (!myRoom) return;
@@ -1356,6 +1361,7 @@ function cancelRoomEdit() {
 }
 
 async function claimRoom() {
+  commitPendingOnsiteDate("r");
   const grade = $("r-grade").value, room = $("r-room").value;
   const teacherName = $("r-teacher").value.trim();
   const limit = limitFromControls($("r-limit-mode"), $("r-limit"));
@@ -1413,6 +1419,7 @@ async function claimRoom() {
 
 async function saveLimit() {
   if (!myRoom) return;
+  commitPendingOnsiteDate("edit");
   const limit = limitFromControls($("edit-limit-mode"), $("edit-limit"));
   const st = $("edit-on-start").value || "", en = $("edit-on-end").value || "";
   if (st && en && st >= en) {
@@ -1929,6 +1936,9 @@ function init() {
   $("s-name").addEventListener("keydown", e => { if (e.key === "Enter") addStudent(); });
   ["au-name", "au-email", "au-pass"].forEach(id =>
     $(id).addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); }));
+  // เลือกวันที่ออนไซต์แล้วกด Enter = เพิ่มเข้ารายการ
+  $("r-on-date").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addOnsiteDate("r"); } });
+  $("edit-on-date").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addOnsiteDate("edit"); } });
 
   const tm = new Date(Date.now() + 86400000);
   $("t-date").value = tm.toISOString().slice(0, 10);
